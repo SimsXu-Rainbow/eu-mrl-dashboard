@@ -1575,7 +1575,11 @@ function renderTableBody(tid) {
       }
       function _changeDate(name) {
         var a = aisByName[name];
-        return a ? (a.changeDate || a.mrlChangeDate || '') : '';
+        if (!a) return '';
+        var d = a.changeDate;
+        /* 空值（null / undefined / '' / '—'）视为无值，不回退到 mrlChangeDate */
+        if (!d || d === '—') return '';
+        return d;
       }
       rows.sort(function (a, b) {
         if (a.pinned && !b.pinned) return -1;
@@ -1583,9 +1587,12 @@ function renderTableBody(tid) {
         var ta = _changeTier(a.change), tb = _changeTier(b.change);
         if (ta !== tb) return (ta - tb) * dir;
         var da = _changeDate(a.name), db = _changeDate(b.name);
-        if (da && db && da !== db) return db.localeCompare(da) * dir;
-        if (da && !db) return -1 * dir;
-        if (!da && db) return 1 * dir;
+        /* 无值（空串或 '—'）始终排到末尾，不受升降序影响 */
+        var ea = (!da), eb = (!db);
+        if (ea && eb) return String(a.name || '').localeCompare(String(b.name || ''));
+        if (ea) return 1;
+        if (eb) return -1;
+        if (da !== db) return db.localeCompare(da) * dir;
         return String(a.name || '').localeCompare(String(b.name || ''));
       });
     } else {
@@ -1595,8 +1602,12 @@ function renderTableBody(tid) {
         var va = a[k], vb = b[k];
         if (va && typeof va === 'object') va = va[S.lang] || '';
         if (vb && typeof vb === 'object') vb = vb[S.lang] || '';
-        if (va === null || va === undefined) va = -Infinity;
-        if (vb === null || vb === undefined) vb = -Infinity;
+        /* 无值（null / undefined / 空串 / '—'）始终排到末尾，不受升降序影响 */
+        var ea = (va === null || va === undefined || va === '' || va === '—');
+        var eb = (vb === null || vb === undefined || vb === '' || vb === '—');
+        if (ea && eb) return String(a.name || '').localeCompare(String(b.name || ''));
+        if (ea) return 1;
+        if (eb) return -1;
         if (typeof va === 'string') { va = va.toLowerCase(); vb = typeof vb === 'string' ? vb.toLowerCase() : ''; }
         if (va < vb) return -dir;
         if (va > vb) return dir;
