@@ -667,14 +667,16 @@ button { font-family: inherit; }
 .mrl-unchanged{ color:var(--rb-text-light); position:relative; cursor:help; }
 .mrl-changed .mrl-crop{ background:var(--rb-mint-2); box-shadow:inset 3px 0 0 var(--rb-cat-3); }
 .mrl-changed td{ background:var(--rb-mint-2); }
-/* 行底纹(优先级: 拟变更差异 > 现行差异 > 无):
-   - 橙 = 拟变更 vs 现行有差异(未来会改)
-   - 绿 = 现行 vs 历史有差异(近期已改, 拟变更未动该作物)
-   左侧色带 + 浅色底, 视觉上不与 mrl-changed 的 mint-2 冲突 */
-.mrl-table tbody tr.mrl-row-prop-curr-diff td{ background:rgba(232,135,40,.12); box-shadow:inset 3px 0 0 #E88728; }
-.mrl-table tbody tr.mrl-row-prop-curr-diff .mrl-crop-inner{ color:#9a4a1c; font-weight:600; }
-.mrl-table tbody tr.mrl-row-curr-hist-diff td{ background:rgba(63,147,106,.13); box-shadow:inset 3px 0 0 #3F936A; }
-.mrl-table tbody tr.mrl-row-curr-hist-diff .mrl-crop-inner{ color:#1e6f3a; font-weight:600; }
+/* 单元格对底纹 (突出"哪两列在被比较"):
+   - 橙 (.mrl-cmp-orange) = 拟变更 vs 现行 有差异 → 给拟变更格 + 现行格 上色
+   - 绿 (.mrl-cmp-green)  = 现行 vs 历史 有差异 → 给现行格 + 历史格 上色
+   外侧色带 (mrl-pair-left/-right) 框出"比较对"范围; 现行格若同时落两对, 橙优先 */
+.mrl-cmp-orange{ background:rgba(232,135,40,.14); }
+.mrl-cmp-orange.mrl-pair-left { box-shadow: inset 2px 0 0 #E88728; }
+.mrl-cmp-orange.mrl-pair-right{ box-shadow: inset -2px 0 0 #E88728; }
+.mrl-cmp-green { background:rgba(63,147,106,.14); }
+.mrl-cmp-green.mrl-pair-left  { box-shadow: inset 2px 0 0 #3F936A; }
+.mrl-cmp-green.mrl-pair-right { box-shadow: inset -2px 0 0 #3F936A; }
 .mrl-empty{ padding:40px; text-align:center; color:var(--rb-text-light); font-size:14px; }
 /* 窄屏微调 */
 @media (max-width:640px){
@@ -4842,23 +4844,19 @@ window.RB_CONFIG = {
     var tbody='<tbody>';
     rows.forEach(function(row){
       var chg=isRowChanged(row);
-      /* 行底纹: 拟变更≠现行 → 橙; 否则现行≠历史 → 绿; 都无 → 无 */
-      var rowTintCls='';
+      /* 行内两对差异判定: 用于给"被比较的两格"上色 */
+      var propCurrDiff=false, currHistDiff=false;
       if(propCol && appCol){
         var _pv=cur.cells[row.code+'|'+propCol.reg];
         var _av=cur.cells[row.code+'|'+appCol.reg];
-        if(isRealVal(_pv) && isRealVal(_av) && String(_pv)!==String(_av)){
-          rowTintCls=' mrl-row-prop-curr-diff';
-        }
+        if(isRealVal(_pv) && isRealVal(_av) && String(_pv)!==String(_av)) propCurrDiff=true;
       }
-      if(!rowTintCls && appCol && histCol){
+      if(appCol && histCol){
         var _av2=cur.cells[row.code+'|'+appCol.reg];
         var _hv=cur.cells[row.code+'|'+histCol.reg];
-        if(isRealVal(_av2) && isRealVal(_hv) && String(_av2)!==String(_hv)){
-          rowTintCls=' mrl-row-curr-hist-diff';
-        }
+        if(isRealVal(_av2) && isRealVal(_hv) && String(_av2)!==String(_hv)) currHistDiff=true;
       }
-      tbody+='<tr class="'+(chg?'mrl-changed':'')+rowTintCls+'"><td class="mrl-crop" style="'+firstColStyle+'"><div class="mrl-crop-inner">'+esc(row.code)+' '+esc(row.name)+'</div></td>';
+      tbody+='<tr'+(chg?' class="mrl-changed"':'')+'><td class="mrl-crop" style="'+firstColStyle+'"><div class="mrl-crop-inner">'+esc(row.code)+' '+esc(row.name)+'</div></td>';
       visCols.forEach(function(col){
         var key=row.code+'|'+col.reg;
         var raw=cur.cells[key];
@@ -4880,6 +4878,23 @@ window.RB_CONFIG = {
               tip = T('m_unchanged_tip');
             }
           }
+        }
+        /* 给"被比较的两格"打 class —— 突出"谁和谁在比":
+           橙对 = 拟变更格 + 现行格 (propCurrDiff)
+           绿对 = 现行格 + 历史格 (currHistDiff)
+           现行格若同时落两对, 橙优先 (更"未来") */
+        if(col === propCol && propCurrDiff){
+          cls += ' mrl-cmp-orange mrl-pair-left';
+        }
+        if(col === appCol){
+          if(propCurrDiff){
+            cls += ' mrl-cmp-orange mrl-pair-right';
+          } else if(currHistDiff){
+            cls += ' mrl-cmp-green mrl-pair-left';
+          }
+        }
+        if(col === histCol && currHistDiff){
+          cls += ' mrl-cmp-green mrl-pair-right';
         }
         tbody+='<td class="'+cls+'"'+(tip?' title="'+esc(tip)+'"':'')+'>'+esc(v)+'</td>';
       });
