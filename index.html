@@ -671,10 +671,10 @@ button { font-family: inherit; }
    - 橙 (.mrl-cmp-orange) = 拟变更 vs 现行 有差异 → 给拟变更格 + 现行格 上色
    - 绿 (.mrl-cmp-green)  = 现行 vs 历史 有差异 → 给现行格 + 历史格 上色
    外侧色带 (mrl-pair-left/-right) 框出"比较对"范围; 现行格若同时落两对, 橙优先 */
-.mrl-cmp-orange{ background:rgba(232,135,40,.14); }
+td.mrl-cmp-orange{ background:rgba(232,135,40,.22); }
 .mrl-cmp-orange.mrl-pair-left { box-shadow: inset 2px 0 0 #E88728; }
 .mrl-cmp-orange.mrl-pair-right{ box-shadow: inset -2px 0 0 #E88728; }
-.mrl-cmp-green { background:rgba(63,147,106,.14); }
+td.mrl-cmp-green { background:rgba(63,147,106,.22); }
 .mrl-cmp-green.mrl-pair-left  { box-shadow: inset 2px 0 0 #3F936A; }
 .mrl-cmp-green.mrl-pair-right { box-shadow: inset -2px 0 0 #3F936A; }
 .mrl-empty{ padding:40px; text-align:center; color:var(--rb-text-light); font-size:14px; }
