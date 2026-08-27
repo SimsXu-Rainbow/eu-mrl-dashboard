@@ -244,6 +244,9 @@ button { font-family: inherit; }
 .rbv-bar-label .rbv-mk { margin-right: 6px; }
 .rbv-th.rbv-noted { background: rgba(205,148,80,.17); }
 .rbv-td.rbv-noted { background: rgba(205,148,80,.06); }
+/* Priority 列(第一列) 底纹与活性物质列一致(透明), 保留 note 标记与说明文字 */
+.rbv-tbody .rbv-row > .rbv-td:nth-child(1),
+.rbv-thead .rbv-th:nth-child(1) { background: transparent; }
 .rbv-th .rbv-mk { width: 13px; height: 13px; font-size: 9px; margin-left: 5px; vertical-align: middle; }
 .rbv-td .rbv-mk { width: 13px; height: 13px; font-size: 9px; margin-left: 5px; vertical-align: middle; }
 .rbv-tnotes { border-bottom: 1px solid var(--rb-border); background: #FAFCFB; padding: 11px 14px 12px; display: grid; gap: 7px; }
@@ -638,6 +641,12 @@ button { font-family: inherit; }
 .mrl-badge-gray{ background:var(--rb-text-mid); color:#fff; }
 .mrl-badge-red{ background:var(--rb-risk-1); color:#fff; }
 .mrl-count{ color:var(--rb-text-light); font-weight:400; }
+/* 变更信号 chip: 拟变更(橙) / MRL修订(绿) / 批准变动(蓝) */
+.rbv-change-chip{ display:inline-block; margin:1px 3px 1px 0; padding:2px 9px; border-radius:999px; font-size:11px; font-weight:600; line-height:1.55; white-space:nowrap; letter-spacing:.2px; border:1px solid transparent; vertical-align:middle; }
+.rbv-cc-proposed{ background:rgba(207,121,61,.15); color:#94512A; border-color:#E8C3A0; }
+.rbv-cc-revised{ background:rgba(63,147,106,.15); color:#2A7554; border-color:#B6DAC6; }
+.rbv-cc-approval{ background:rgba(58,109,240,.13); color:#2C5BB7; border-color:#BCC9F6; }
+.rbv-cc-other{ background:#EEF2F1; color:var(--rb-text-mid); border-color:#DCE5E2; }
 /* 矩阵滚动区 */
 .mrl-matrix-wrap{ overflow:auto; flex:1; padding:0; background:var(--rb-white); }
 .mrl-table{ border-collapse:separate; border-spacing:0; font-size:13px; min-width:100%; table-layout:fixed; }
@@ -658,6 +667,14 @@ button { font-family: inherit; }
 .mrl-unchanged{ color:var(--rb-text-light); position:relative; cursor:help; }
 .mrl-changed .mrl-crop{ background:var(--rb-mint-2); box-shadow:inset 3px 0 0 var(--rb-cat-3); }
 .mrl-changed td{ background:var(--rb-mint-2); }
+/* 行底纹(优先级: 拟变更差异 > 现行差异 > 无):
+   - 橙 = 拟变更 vs 现行有差异(未来会改)
+   - 绿 = 现行 vs 历史有差异(近期已改, 拟变更未动该作物)
+   左侧色带 + 浅色底, 视觉上不与 mrl-changed 的 mint-2 冲突 */
+.mrl-table tbody tr.mrl-row-prop-curr-diff td{ background:rgba(232,135,40,.12); box-shadow:inset 3px 0 0 #E88728; }
+.mrl-table tbody tr.mrl-row-prop-curr-diff .mrl-crop-inner{ color:#9a4a1c; font-weight:600; }
+.mrl-table tbody tr.mrl-row-curr-hist-diff td{ background:rgba(63,147,106,.13); box-shadow:inset 3px 0 0 #3F936A; }
+.mrl-table tbody tr.mrl-row-curr-hist-diff .mrl-crop-inner{ color:#1e6f3a; font-weight:600; }
 .mrl-empty{ padding:40px; text-align:center; color:var(--rb-text-light); font-size:14px; }
 /* 窄屏微调 */
 @media (max-width:640px){
@@ -1452,7 +1469,7 @@ function renderTable(container, blk) {
     }
     th.addEventListener('click', function () {
       if (st.sortCol === i) st.sortDir = -st.sortDir;
-      else { st.sortCol = i; st.sortDir = (c.type === 'text' || c.type === 'main') ? 1 : -1; }
+      else { st.sortCol = i; st.sortDir = (c.type === 'text' || c.type === 'main' || c.key === 'priority') ? 1 : -1; }
       renderTableBody(domTid);
     });
     thead.appendChild(th);
@@ -1572,7 +1589,7 @@ function renderTableBody(tid) {
       }
       function _changeTier(c) {
         if (!c || c === '—' || c === '') return 3;
-        if (c.indexOf('拟变更') >= 0) return 1;
+        if (c.indexOf('拟变更') >= 0 || c.indexOf('MRL修订') >= 0) return 1;
         return 2;
       }
       function _changeDate(name) {
@@ -1642,12 +1659,30 @@ function renderTableBody(tid) {
       var v = r[c.key];
       var td = el('div', 'rbv-td');
       td.setAttribute('data-label', TL(c.label));
+      td.setAttribute('data-col', c.key);
       if (notedCol[ci]) td.classList.add('rbv-noted');
       if (c.type === 'main') {
         td.classList.add('rbv-td-main');
         td.textContent = L(v);
       } else if (c.type === 'i18n') {
-        td.textContent = TL(v);
+        if (c.key === 'change' && v && v !== '—') {
+          /* 变更信号渲染为 chip: 拟变更(橙) / MRL修订(绿) / 批准变动(蓝); 双标签并存 */
+          String(v).split(' · ').forEach(function (p) {
+            p = p.trim();
+            var cc = 'rbv-cc-other';
+            if (p === '拟变更') cc = 'rbv-cc-proposed';
+            else if (p === 'MRL修订') cc = 'rbv-cc-revised';
+            else if (p === '批准变动') cc = 'rbv-cc-approval';
+            var chip = el('span', 'rbv-change-chip ' + cc);
+            chip.textContent = TL(p);
+            td.appendChild(chip);
+          });
+        } else if (v && String(v).indexOf(' · ') >= 0) {
+          /* 其他 i18n 列(如 status)仍按原逻辑拆开翻译 */
+          td.textContent = String(v).split(' · ').map(function(p){ return TL(p); }).join(' · ');
+        } else {
+          td.textContent = TL(v);
+        }
       } else if (c.type === 'code') {
         var code = el('span', 'rbv-code', v === null || v === undefined ? '–' : String(L(v)));
         td.appendChild(code);
@@ -2097,6 +2132,7 @@ window.RB_CONFIG = {
       "th_change": "变更信号",
       "th_expiry": "批准到期",
       "th_source": "依据法规",
+      "th_priority": "优先级",
       "col_change_n": "变更信号来自 EC datalake 与 EFSA Journal：拟变更=草案待生效；MRL修订=近期已更新。",
       "sec_changes": "变动追踪（有变更信号的物质）",
       "sec_changes_n": "共 37 个物质带有变更信号；拟变更 MRL 须以 EUR-Lex 与 EFSA Journal 复核。",
@@ -2146,6 +2182,7 @@ window.RB_CONFIG = {
       "sec_divider_n": "近 6 个月内有变更信号的物质（含变更信号类型、变更日、MRL 变动日、批准到期）。",
       "th_sources": "数据来源",
       "col_sources_n": "点击 EFSA 链接直达该物质在 EFSA Open Questions 的页面（仅对有 EFSA 申请的物质显示，无申请则显示 —）。",
+      "col_priority_n": "来自 DGA 排期表（Working Plan for Art 34）。数值越小越紧急，未列入该计划的 AI 显示 —。",
       "src_status_legend": "数据来源状态说明：Intake = EFSA 已接收申请、开始公开征求意见（变更起点）；Published = EFSA 已在 Journal 发布 Reasoned Opinion / 评估结论（即将进入立法落地）。",
       "nav_sources": "信息来源",
       "src_lead_eyebrow": "Data Provenance · 信息来源与对应",
@@ -2249,6 +2286,7 @@ window.RB_CONFIG = {
       "th_change": "Change signal",
       "th_expiry": "Approval expiry",
       "th_source": "Regulation",
+      "th_priority": "Priority",
       "col_change_n": "Change signals from EC datalake and EFSA Journal: Proposed = draft pending; MRL revised = recently updated.",
       "sec_changes": "Change Tracker (substances with change signals)",
       "sec_changes_n": "37 substances carry change signals; proposed MRLs must be verified against EUR-Lex and the EFSA Journal.",
@@ -2298,6 +2336,7 @@ window.RB_CONFIG = {
       "sec_divider_n": "Substances with a change signal in the last 6 months (change signal type, change date, MRL change date, approval expiry).",
       "th_sources": "Source(s)",
       "col_sources_n": "Click the EFSA link to open that substance's page in EFSA Open Questions (shown only for substances with EFSA applications; otherwise —).",
+      "col_priority_n": "From DGA Working Plan for Art 34. Lower = more urgent. — if the AI is not listed in the plan.",
       "src_status_legend": "Source status legend: Intake = EFSA has received the application and opened public consultation (start of the change). Published = EFSA has issued the Reasoned Opinion / scientific assessment in the Journal (imminent EU regulatory adoption).",
       "nav_sources": "Sources",
       "src_lead_eyebrow": "Data Provenance · Sources & Mapping",
@@ -2472,1644 +2511,1821 @@ window.RB_CONFIG = {
           "type": "table",
           "id": "substances",
           "columns": [
-            {
-              "key": "name",
-              "label": "th_name",
-              "type": "main",
-              "width": 14
-            },
-            {
-              "key": "change",
-              "label": "th_change",
-              "type": "i18n",
-              "width": 12,
-              "note": "col_change_n"
-            },
-            {
-              "key": "changeDate",
-              "label": "th_c_cd",
-              "type": "mono",
-              "width": 9,
-              "note": "note_changes"
-            },
-            {
-              "key": "sources",
-              "label": "th_sources",
-              "type": "sources",
-              "width": 17,
-              "note": "col_sources_n"
-            },
-            {
-              "key": "mrlChangeDate",
-              "label": "th_c_mcd",
-              "type": "mono",
-              "width": 9
-            },
-            {
-              "key": "status",
-              "label": "th_status",
-              "type": "i18n",
-              "width": 12
-            },
-            {
-              "key": "expiry",
-              "label": "th_expiry",
-              "type": "mono",
-              "width": 9
-            },
-            {
-              "key": "source",
-              "label": "th_source",
-              "type": "code",
-              "width": 14
-            }
-          ],
+                {
+                  "key": "priority",
+                  "label": "th_priority",
+                  "type": "mono",
+                  "width": 6,
+                  "note": "col_priority_n"
+                },
+                {
+                  "key": "name",
+                  "label": "th_name",
+                  "type": "main",
+                  "width": 18
+                },
+                {
+                  "key": "change",
+                  "label": "th_change",
+                  "type": "i18n",
+                  "width": 16,
+                  "note": "col_change_n"
+                },
+                {
+                  "key": "changeDate",
+                  "label": "th_c_cd",
+                  "type": "mono",
+                  "width": 9,
+                  "note": "note_changes"
+                },
+                {
+                  "key": "sources",
+                  "label": "th_sources",
+                  "type": "sources",
+                  "width": 15,
+                  "note": "col_sources_n"
+                },
+                {
+                  "key": "mrlChangeDate",
+                  "label": "th_c_mcd",
+                  "type": "mono",
+                  "width": 9
+                },
+                {
+                  "key": "status",
+                  "label": "th_status",
+                  "type": "i18n",
+                  "width": 11
+                },
+                {
+                  "key": "expiry",
+                  "label": "th_expiry",
+                  "type": "mono",
+                  "width": 9
+                }
+              ],
           "rows": [
-            {
-              "name": "Cyprodinil",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2023-06-22",
-              "expiry": "2027-07-31",
-              "source": "Reg (EU) 2026/1826"
-            },
-            {
-              "name": "Diflufenican",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2017-04-26",
-              "expiry": "2027-08-31",
-              "source": "Reg (EU) 2025/2316"
-            },
-            {
-              "name": "Spinosad",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2023-02-28",
-              "expiry": "2041-04-01",
-              "source": "Reg (EU) 2026/351"
-            },
-            {
-              "name": "Deltamethrin",
-              "status": "已批准",
-              "change": "拟变更",
-              "changeDate": "2026-05-19",
-              "mrlChangeDate": "2026-05-12",
-              "expiry": "2028-06-30",
-              "source": "Reg (EU) 2026/1421"
-            },
-            {
-              "name": "Fluroxypyr-meptyl",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2023-02-25",
-              "expiry": "2027-02-15",
-              "source": "Reg (EU) 2024/2781"
-            },
-            {
-              "name": "Azoxystrobin",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2025-07-23",
-              "expiry": "2027-05-31",
-              "source": "Reg (EU) 2024/2781"
-            },
-            {
-              "name": "Paraffin Oil",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2015-10-15",
-              "expiry": "2021-12-31",
-              "source": "Reg (EU) 2023/2592"
-            },
-            {
-              "name": "Fosetyl Aluminium",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2025-04-29",
-              "expiry": "2028-01-31",
-              "source": "Reg (EU) 2026/1826"
-            },
-            {
-              "name": "Mepiquat Chloride",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2025-07-06",
-              "expiry": "2040-02-29",
-              "source": "Implementing Regulation (EU) 2025/150"
-            },
-            {
-              "name": "Mefenpyr-diethyl",
-              "status": "无批准记录",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "—",
-              "expiry": "—",
-              "source": "—"
-            },
-            {
-              "name": "Isoxadifen-ethyl",
-              "status": "无批准记录",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "—",
-              "expiry": "—",
-              "source": "—"
-            },
-            {
-              "name": "Cloquintocet-mexyl",
-              "status": "无批准记录",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "—",
-              "expiry": "—",
-              "source": "—"
-            },
-            {
-              "name": "Cyprosulfamide",
-              "status": "无批准记录",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "—",
-              "expiry": "—",
-              "source": "—"
-            },
-            {
-              "name": "Fluopyram",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2025-04-30",
-              "expiry": "2028-06-15",
-              "source": "Reg (EU) 2026/372"
-            },
-            {
-              "name": "Ethofumesate",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2017-07-11",
-              "expiry": "2031-10-31",
-              "source": "Reg (EU) 2016/1426"
-            },
-            {
-              "name": "Fenhexamid",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2023-06-22",
-              "expiry": "2030-12-31",
-              "source": "Reg (EU) 2015/1201"
-            },
-            {
-              "name": "Fenpyroximate",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2023-06-22",
-              "expiry": "2028-01-31",
-              "source": "Reg (EU) 2026/372"
-            },
-            {
-              "name": "Abamectin",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2023-08-20",
-              "expiry": "2038-03-31",
-              "source": "Reg (EU) 2023/515"
-            },
-            {
-              "name": "Acetamiprid",
-              "status": "已批准",
-              "change": "MRL修订",
-              "changeDate": "2026-05-12",
-              "mrlChangeDate": "2026-05-12",
-              "expiry": "2033-02-28",
-              "source": "Reg (EU) 2018/113"
-            },
-            {
-              "name": "Bixafen",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2023-06-22",
-              "expiry": "2027-10-31",
-              "source": "Reg (EU) 2025/787"
-            },
-            {
-              "name": "Metconazole",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2016-11-24",
-              "expiry": "2031-08-31",
-              "source": "Reg (EU) 2026/398"
-            },
-            {
-              "name": "Flumioxazin",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2015-05-13",
-              "expiry": "2037-02-28",
-              "source": "Reg (EU) 2022/43"
-            },
-            {
-              "name": "2,4-D 2-Ethylhexyl Ester",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2023-02-25",
-              "expiry": "2030-12-31",
-              "source": "Reg (EU) 2015/2033"
-            },
-            {
-              "name": "Isoxaflutole",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2023-06-22",
-              "expiry": "2034-07-31",
-              "source": "Reg (EU) 2019/717"
-            },
-            {
-              "name": "Clethodim",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2008-09-01",
-              "expiry": "2027-12-15",
-              "source": "Reg (EU) 2026/1421"
-            },
-            {
-              "name": "Trinexapac-ethyl",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2017-07-11",
-              "expiry": "2039-04-30",
-              "source": "Reg (EU) 2024/835"
-            },
-            {
-              "name": "Difenoconazole",
-              "status": "已批准",
-              "change": "拟变更",
-              "changeDate": "2026-05-19",
-              "mrlChangeDate": "2024-10-28",
-              "expiry": "2028-01-31",
-              "source": "Reg (EU) 2025/2316"
-            },
-            {
-              "name": "Quizalofop-P-ethyl",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2023-09-14",
-              "expiry": "2027-02-28",
-              "source": "Reg (EU) 2023/1757"
-            },
-            {
-              "name": "Metamitron",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2021-11-10",
-              "expiry": "2026-11-30",
-              "source": "Reg (EU) 2023/1446"
-            },
-            {
-              "name": "Metazachlor",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2024-05-06",
-              "expiry": "2029-05-31",
-              "source": "Reg (EU) 2026/1826"
-            },
-            {
-              "name": "Iodosulfuron-methyl-sodium",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2024-11-06",
-              "expiry": "2032-03-31",
-              "source": "Reg (EU) 2017/407"
-            },
-            {
-              "name": "Imazamox Ammonium Salt",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2022-01-03",
-              "expiry": "2027-06-30",
-              "source": "Reg (EU) 2025/99"
-            },
-            {
-              "name": "Flonicamid",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2024-10-28",
-              "expiry": "2026-11-30",
-              "source": "Reg (EU) 2023/1446"
-            },
-            {
-              "name": "Pinoxaden",
-              "status": "已批准",
-              "change": "拟变更",
-              "changeDate": "2026-05-19",
-              "mrlChangeDate": "2023-02-22",
-              "expiry": "2029-12-31",
-              "source": "Reg (EU) 2026/372"
-            },
-            {
-              "name": "Foramsulfuron",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2014-10-11",
-              "expiry": "2035-05-31",
-              "source": "Reg (EU) 2020/616"
-            },
-            {
-              "name": "Pendimethalin",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2023-06-20",
-              "expiry": "2027-01-15",
-              "source": "Reg (EU) 2024/2221"
-            },
-            {
-              "name": "Mesotrione",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2024-11-06",
-              "expiry": "2032-05-31",
-              "source": "Reg (EU) 2017/725"
-            },
-            {
-              "name": "Tefluthrin",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2025-07-23",
-              "expiry": "2027-05-31",
-              "source": "Reg (EU) 2024/2781"
-            },
-            {
-              "name": "Captan",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2019-07-11",
-              "expiry": "2039-10-31",
-              "source": "Reg (EU) 2024/2186"
-            },
-            {
-              "name": "Pyriproxyfen",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2024-04-02",
-              "expiry": "2035-07-31",
-              "source": "Reg (EU) 2020/968"
-            },
-            {
-              "name": "Bentazone Sodium Salt",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2021-11-02",
-              "expiry": "2027-10-31",
-              "source": "Reg (EU) 2025/787"
-            },
-            {
-              "name": "Propyzamide",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2015-05-13",
-              "expiry": "2027-11-30",
-              "source": "Reg (EU) 2025/787"
-            },
-            {
-              "name": "Nicosulfuron",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2015-01-02",
-              "expiry": "2027-03-31",
-              "source": "Reg (EU) 2023/2592"
-            },
-            {
-              "name": "Boscalid",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2022-08-18",
-              "expiry": "2028-03-31",
-              "source": "Reg (EU) 2026/372"
-            },
-            {
-              "name": "Pyraclostrobin",
-              "status": "已批准",
-              "change": "MRL修订",
-              "changeDate": "2026-02-11",
-              "mrlChangeDate": "2026-02-11",
-              "expiry": "2026-12-15",
-              "source": "Reg (EU) 2026/1826"
-            },
-            {
-              "name": "Chlorantraniliprole",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2024-06-11",
-              "expiry": "2027-05-31",
-              "source": "Reg (EU) 2024/2781"
-            },
-            {
-              "name": "Folpet",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2023-06-19",
-              "expiry": "2039-10-31",
-              "source": "Reg (EU) 2024/2198"
-            },
-            {
-              "name": "Potassium Phosphonates",
-              "status": "已批准",
-              "change": "MRL修订",
-              "changeDate": "2026-05-12",
-              "mrlChangeDate": "2026-05-12",
-              "expiry": "2029-07-31",
-              "source": "Reg (EU) 2025/2316"
-            },
-            {
-              "name": "Propaquizafop",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2023-09-14",
-              "expiry": "2027-02-28",
-              "source": "Reg (EU) 2023/1757"
-            },
-            {
-              "name": "Flazasulfuron",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2023-02-25",
-              "expiry": "2032-07-31",
-              "source": "Reg (EU) 2017/805"
-            },
-            {
-              "name": "Fluroxypyr",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2023-02-25",
-              "expiry": "2027-02-15",
-              "source": "Reg (EU) 2024/2781"
-            },
-            {
-              "name": "Florasulam",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2023-02-25",
-              "expiry": "2030-12-31",
-              "source": "Reg (EU) 2015/1397"
-            },
-            {
-              "name": "Cyflufenamid",
-              "status": "已批准",
-              "change": "MRL修订",
-              "changeDate": "2026-04-20",
-              "mrlChangeDate": "2026-04-20",
-              "expiry": "2027-06-30",
-              "source": "Reg (EU) 2024/324"
-            },
-            {
-              "name": "Carfentrazone-ethyl",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2021-05-17",
-              "expiry": "2033-07-31",
-              "source": "Reg (EU) 2018/1061"
-            },
-            {
-              "name": "Dimethenamid-P",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2019-11-18",
-              "expiry": "2034-08-31",
-              "source": "Reg (EU) 2019/1137"
-            },
-            {
-              "name": "Clodinafop-propargyl",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2014-03-06",
-              "expiry": "2027-07-31",
-              "source": "Reg (EU) 2025/1489"
-            },
-            {
-              "name": "Silthiofam",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2023-02-25",
-              "expiry": "2033-06-30",
-              "source": "Reg (EU) 2018/710"
-            },
-            {
-              "name": "Pyraflufen-ethyl",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2024-11-06",
-              "expiry": "2031-03-31",
-              "source": "Reg (EU) 2016/182"
-            },
-            {
-              "name": "Prothioconazole",
-              "status": "已批准",
-              "change": "拟变更",
-              "changeDate": "2026-05-19",
-              "mrlChangeDate": "2024-06-05",
-              "expiry": "2027-03-31",
-              "source": "Reg (EU) 2025/787"
-            },
-            {
-              "name": "Prosulfocarb",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2023-02-26",
-              "expiry": "2027-01-31",
-              "source": "Reg (EU) 2023/1757"
-            },
-            {
-              "name": "Spiroxamine",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2016-04-19",
-              "expiry": "2029-11-30",
-              "source": "Reg (EU) 2026/372"
-            },
-            {
-              "name": "2,4-D",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2023-02-25",
-              "expiry": "2030-12-31",
-              "source": "Reg (EU) 2015/2033"
-            },
-            {
-              "name": "Trinexapac",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2017-07-11",
-              "expiry": "2039-04-30",
-              "source": "Reg (EU) 2024/835"
-            },
-            {
-              "name": "Oxathiapiprolin",
-              "status": "已批准",
-              "change": "MRL修订",
-              "changeDate": "2026-05-12",
-              "mrlChangeDate": "2026-05-12",
-              "expiry": "2027-03-03",
-              "source": "Reg (EU) 2017/239"
-            },
-            {
-              "name": "Chlormequat Chloride",
-              "status": "已批准",
-              "change": "拟变更",
-              "changeDate": "2026-02-11",
-              "mrlChangeDate": "2026-02-11",
-              "expiry": "2027-02-28",
-              "source": "Reg (EU) 2023/1757"
-            },
-            {
-              "name": "MCPA Dimethylamine Salt",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2014-06-05",
-              "expiry": "2028-07-31",
-              "source": "Reg (EU) 2026/1421"
-            },
-            {
-              "name": "Fluazifop-P-butyl",
-              "status": "未批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2022-08-18",
-              "expiry": "—",
-              "source": "—"
-            },
-            {
-              "name": "Fludioxonil",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2022-08-10",
-              "expiry": "2027-09-30",
-              "source": "Reg (EU) 2026/1826"
-            },
-            {
-              "name": "Dicamba Dimethylamine Salt",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2015-06-24",
-              "expiry": "2027-03-31",
-              "source": "Reg (EU) 2023/2592"
-            },
-            {
-              "name": "Mandipropamid",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2024-10-29",
-              "expiry": "2029-06-30",
-              "source": "Reg (EU) 2025/1489"
-            },
-            {
-              "name": "Trifloxystrobin",
-              "status": "已批准",
-              "change": "MRL修订",
-              "changeDate": "2026-02-11",
-              "mrlChangeDate": "2026-02-11",
-              "expiry": "2033-07-31",
-              "source": "Reg (EU) 2018/1060"
-            },
-            {
-              "name": "Pyrimethanil",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2024-05-06",
-              "expiry": "2041-04-30",
-              "source": "Reg (EU) 2026/355"
-            },
-            {
-              "name": "Clomazone",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2019-01-01",
-              "expiry": "2027-12-31",
-              "source": "Reg (EU) 2026/1826"
-            },
-            {
-              "name": "Cymoxanil",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2023-02-25",
-              "expiry": "2027-11-30",
-              "source": "Reg (EU) 2026/1421"
-            },
-            {
-              "name": "Dicamba Sodium Salt",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2015-06-24",
-              "expiry": "2027-03-31",
-              "source": "Reg (EU) 2023/2592"
-            },
-            {
-              "name": "Ferric Phosphate",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2008-09-01",
-              "expiry": "2030-12-31",
-              "source": "Reg (EU) 2015/1166"
-            },
-            {
-              "name": "Aclonifen",
-              "status": "已批准",
-              "change": "MRL修订",
-              "changeDate": "2026-05-12",
-              "mrlChangeDate": "2026-05-12",
-              "expiry": "2029-03-31",
-              "source": "Reg (EU) 2026/1826"
-            },
-            {
-              "name": "Tebufenpyrad",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2025-04-28",
-              "expiry": "2027-01-31",
-              "source": "Reg (EU) 2023/1757"
-            },
-            {
-              "name": "Tebuconazole",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2018-11-01",
-              "expiry": "2028-07-31",
-              "source": "Reg (EU) 2026/1421"
-            },
-            {
-              "name": "Thifensulfuron-methyl",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2015-01-02",
-              "expiry": "2031-10-31",
-              "source": "Reg (EU) 2016/1424"
-            },
-            {
-              "name": "2,4-D Dimethylamine Salt",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2023-02-25",
-              "expiry": "2030-12-31",
-              "source": "Reg (EU) 2015/2033"
-            },
-            {
-              "name": "Azadirachtin",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2008-09-01",
-              "expiry": "2027-01-31",
-              "source": "Reg (EU) 2024/1206"
-            },
-            {
-              "name": "Thiabendazole Hypophosphite",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2024-12-11",
-              "expiry": "2032-03-31",
-              "source": "Reg (EU) 2017/157"
-            },
-            {
-              "name": "Metobromuron",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2023-08-16",
-              "expiry": "2027-05-31",
-              "source": "Reg (EU) 2024/2781"
-            },
-            {
-              "name": "Fosthiazate",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2008-09-01",
-              "expiry": "2027-01-31",
-              "source": "Reg (EU) 2023/1757"
-            },
-            {
-              "name": "Imazamox",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2022-01-03",
-              "expiry": "2027-06-30",
-              "source": "Reg (EU) 2025/99"
-            },
-            {
-              "name": "Hexythiazox",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2025-07-23",
-              "expiry": "2027-01-31",
-              "source": "Reg (EU) 2024/1206"
-            },
-            {
-              "name": "Tribenuron-methyl",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2016-01-21",
-              "expiry": "2034-01-30",
-              "source": "Reg (EU) 2018/1913"
-            },
-            {
-              "name": "Metrafenone",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2018-06-05",
-              "expiry": "2039-10-31",
-              "source": "Reg (EU) 2024/2390"
-            },
-            {
-              "name": "Flurochloridone",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2020-01-04",
-              "expiry": "2027-10-31",
-              "source": "Reg (EU) 2025/2316"
-            },
-            {
-              "name": "Buprofezin",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2019-08-13",
-              "expiry": "2026-12-15",
-              "source": "Reg (EU) 2025/1489"
-            },
-            {
-              "name": "Hymexazol",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2021-11-10",
-              "expiry": "2029-01-31",
-              "source": "Reg (EU) 2026/1421"
-            },
-            {
-              "name": "Penconazole",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2025-08-24",
-              "expiry": "2029-02-15",
-              "source": "Reg (EU) 2026/1826"
-            },
-            {
-              "name": "Zoxamide",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2025-08-19",
-              "expiry": "2033-06-30",
-              "source": "Reg (EU) 2018/692"
-            },
-            {
-              "name": "MCPP-P",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2008-09-01",
-              "expiry": "2021-01-31",
-              "source": "Reg (EU) 2025/787"
-            },
-            {
-              "name": "MCPB",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2014-06-05",
-              "expiry": "2028-07-31",
-              "source": "Reg (EU) 2026/1421"
-            },
-            {
-              "name": "Glyphosate",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2013-04-06",
-              "expiry": "2033-12-15",
-              "source": "Reg (EU) 2023/2660"
-            },
-            {
-              "name": "MCPA",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2014-06-05",
-              "expiry": "2028-07-31",
-              "source": "Reg (EU) 2026/1421"
-            },
-            {
-              "name": "Myclobutanil",
-              "status": "未批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2021-01-02",
-              "expiry": "2021-05-31",
-              "source": "Reg (EU) 2022/801"
-            },
-            {
-              "name": "Dithianon",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2024-12-05",
-              "expiry": "2027-01-31",
-              "source": "Reg (EU) 2024/1206"
-            },
-            {
-              "name": "Mesosulfuron-methyl",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2014-10-11",
-              "expiry": "2032-06-30",
-              "source": "Reg (EU) 2017/755"
-            },
-            {
-              "name": "Oxyfluorfen",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2023-02-21",
-              "expiry": "2027-05-31",
-              "source": "Reg (EU) 2024/2781"
-            },
-            {
-              "name": "Cyantraniliprole",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2025-07-06",
-              "expiry": "2030-03-14",
-              "source": "Reg (EU) 2026/1826"
-            },
-            {
-              "name": "Dimethomorph",
-              "status": "未批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2021-05-25",
-              "expiry": "2024-05-20",
-              "source": "Reg (EU) 2024/1207"
-            },
-            {
-              "name": "Emamectin Benzoate",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2024-06-11",
-              "expiry": "2026-11-15",
-              "source": "Reg (EU) 2024/2221"
-            },
-            {
-              "name": "Tribenuron",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2016-01-21",
-              "expiry": "2034-01-30",
-              "source": "Reg (EU) No 2018/1913"
-            },
-            {
-              "name": "Ethephon",
-              "status": "已批准",
-              "change": "拟变更",
-              "changeDate": "2025-06-23",
-              "mrlChangeDate": "2026-08-19",
-              "expiry": "2039-01-31",
-              "source": "Reg (EU) 2023/2591"
-            },
-            {
-              "name": "Dichlorprop-P",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2025-04-17",
-              "expiry": "2027-10-31",
-              "source": "Reg (EU) 2026/1826"
-            },
-            {
-              "name": "Halosulfuron-methyl",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2008-09-01",
-              "expiry": "2026-11-15",
-              "source": "Reg (EU) 2025/99"
-            },
-            {
-              "name": "Prosulfuron",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2015-01-02",
-              "expiry": "2029-12-15",
-              "source": "Reg (EU) 2026/372"
-            },
-            {
-              "name": "Quinmerac",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2023-02-21",
-              "expiry": "2026-12-31",
-              "source": "Reg (EU) 2024/1206"
-            },
-            {
-              "name": "Chlorothalonil",
-              "status": "未批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2021-09-02",
-              "expiry": "2019-05-20",
-              "source": "Reg (EU) 2019/677"
-            },
-            {
-              "name": "Picloram",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2025-07-23",
-              "expiry": "2028-02-15",
-              "source": "Reg (EU) 2023/2592"
-            },
-            {
-              "name": "Methoxyfenozide",
-              "status": "未批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2026-01-06",
-              "expiry": "2026-03-31",
-              "source": "Reg (EU) 2019/158"
-            },
-            {
-              "name": "Indoxacarb",
-              "status": "未批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2024-08-14",
-              "expiry": "2021-12-19",
-              "source": "Reg (EU) 2021/2081"
-            },
-            {
-              "name": "S-metolachlor",
-              "status": "未批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2026-01-06",
-              "expiry": "2024-01-22",
-              "source": "Reg (EU) 2024/20"
-            },
-            {
-              "name": "Cyazofamid",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2020-07-09",
-              "expiry": "2036-07-31",
-              "source": "Reg (EU) 2021/843"
-            },
-            {
-              "name": "Spiromesifen",
-              "status": "未批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2024-06-11",
-              "expiry": "2023-09-30",
-              "source": "Reg (EU) 2025/1092"
-            },
-            {
-              "name": "Flumetralin",
-              "status": "未批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2016-04-26",
-              "expiry": "2025-01-15",
-              "source": "Reg (EU) 2025/1092"
-            },
-            {
-              "name": "Imidacloprid",
-              "status": "未批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2022-05-16",
-              "expiry": "2020-12-01",
-              "source": "Reg (EU) 2020/1643"
-            },
-            {
-              "name": "Lambda-cyhalothrin",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2025-02-11",
-              "expiry": "2029-01-31",
-              "source": "Reg (EU) 2026/1421"
-            },
-            {
-              "name": "Prohexadione-calcium",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2021-07-08",
-              "expiry": "2028-05-15",
-              "source": "Reg (EU) 2026/372"
-            },
-            {
-              "name": "Kresoxim-methyl",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2020-07-09",
-              "expiry": "2027-05-31",
-              "source": "Reg (EU) 2024/2781"
-            },
-            {
-              "name": "Rimsulfuron",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2015-01-02",
-              "expiry": "2028-08-15",
-              "source": "Reg (EU) 2025/787"
-            },
-            {
-              "name": "Fluazinam",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2018-02-06",
-              "expiry": "2027-11-30",
-              "source": "Reg (EU) 2026/372"
-            },
-            {
-              "name": "Cyhalofop-butyl",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2023-02-25",
-              "expiry": "2032-06-30",
-              "source": "Reg (EU) 2017/753"
-            },
-            {
-              "name": "Bentazone",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2021-11-02",
-              "expiry": "2027-10-31",
-              "source": "Reg (EU) 2025/787"
-            },
-            {
-              "name": "Florpyrauxifen-benzyl",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2019-11-18",
-              "expiry": "2029-07-24",
-              "source": "Reg (EU) No 2019/1138"
-            },
-            {
-              "name": "Phenmedipham",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2016-06-09",
-              "expiry": "2027-09-30",
-              "source": "Reg (EU) 2026/1826"
-            },
-            {
-              "name": "Terbuthylazine",
-              "status": "已批准",
-              "change": "拟变更",
-              "changeDate": "2026-02-06",
-              "mrlChangeDate": "2021-11-06",
-              "expiry": "2027-05-31",
-              "source": "Reg (EU) 2024/2781"
-            },
-            {
-              "name": "Etoxazole",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2024-04-08",
-              "expiry": "2028-01-31",
-              "source": "Reg (EU) 2020/2105"
-            },
-            {
-              "name": "Metsulfuron-methyl",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2015-01-02",
-              "expiry": "2029-07-31",
-              "source": "Reg (EU) 2026/1421"
-            },
-            {
-              "name": "Amidosulfuron",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2025-07-23",
-              "expiry": "2026-11-30",
-              "source": "Reg (EU) 2025/787"
-            },
-            {
-              "name": "Flufenacet",
-              "status": "未批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2015-05-13",
-              "expiry": "2025-06-10",
-              "source": "Reg (EU) 2025/910"
-            },
-            {
-              "name": "Bifenazate",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2024-10-14",
-              "expiry": "2037-06-30",
-              "source": "Reg (EU) 2022/698"
-            },
-            {
-              "name": "Tembotrione",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2020-04-07",
-              "expiry": "2026-12-31",
-              "source": "Reg (EU) 2020/2007"
-            },
-            {
-              "name": "Spirotetramat",
-              "status": "未批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2023-06-20",
-              "expiry": "2024-04-30",
-              "source": "Reg (EU) 2025/1092"
-            },
-            {
-              "name": "Aminopyralid",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2022-05-10",
-              "expiry": "2027-05-31",
-              "source": "Reg (EU) 2024/2781"
-            },
-            {
-              "name": "Metribuzin",
-              "status": "未批准",
-              "change": "拟变更",
-              "changeDate": "2026-02-06",
-              "mrlChangeDate": "2017-04-26",
-              "expiry": "2024-11-24",
-              "source": "Reg (EU) 2024/2806"
-            },
-            {
-              "name": "Propamocarb",
-              "status": "已批准",
-              "change": "拟变更",
-              "changeDate": "2025-07-23",
-              "mrlChangeDate": "2026-08-19",
-              "expiry": "2027-01-31",
-              "source": "Reg (EU) 2025/787"
-            },
-            {
-              "name": "Thiencarbazone",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2022-01-27",
-              "expiry": "2027-03-01",
-              "source": "Reg (EU) 2024/1892"
-            },
-            {
-              "name": "Pyroxsulam",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2023-02-21",
-              "expiry": "2027-09-30",
-              "source": "Reg (EU) 2025/99"
-            },
-            {
-              "name": "Fenoxaprop-P-ethyl",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2008-09-01",
-              "expiry": "2026-11-30",
-              "source": "Reg (EU) 2025/787"
-            },
-            {
-              "name": "Triclopyr Butoxyethyl Ester",
-              "status": "已批准",
-              "change": "拟变更",
-              "changeDate": "2026-02-06",
-              "mrlChangeDate": "2023-04-13",
-              "expiry": "2027-03-31",
-              "source": "Reg (EU) 2025/2316"
-            },
-            {
-              "name": "Clopyralid Olamine Salt",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2024-10-28",
-              "expiry": "2036-09-30",
-              "source": "Reg (EU) 2021/1191"
-            },
-            {
-              "name": "Copper Oxychloride",
-              "status": "已批准",
-              "change": "MRL修订",
-              "changeDate": "2026-05-05",
-              "mrlChangeDate": "2026-05-05",
-              "expiry": "2029-06-30",
-              "source": "Reg (EU) No 2018/1981"
-            },
-            {
-              "name": "Glyphosate Isopropylamine Salt",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2013-04-06",
-              "expiry": "2033-12-15",
-              "source": "Reg (EU) 2023/2660"
-            },
-            {
-              "name": "Prohexadione",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2021-07-08",
-              "expiry": "2028-05-15",
-              "source": "Reg (EU) 2026/372"
-            },
-            {
-              "name": "1-Naphthylacetic Acid",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2017-01-19",
-              "expiry": "2029-11-30",
-              "source": "Reg (EU) 2026/372"
-            },
-            {
-              "name": "Dodine",
-              "status": "已批准",
-              "change": "拟变更",
-              "changeDate": "2026-05-19",
-              "mrlChangeDate": "2022-08-14",
-              "expiry": "2028-06-30",
-              "source": "Reg (EU) 2026/372"
-            },
-            {
-              "name": "Gibberellic Acid",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2014-06-23",
-              "expiry": "2040-12-31",
-              "source": "Reg (EU) 2025/2313"
-            },
-            {
-              "name": "Fluxapyroxad",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2025-02-11",
-              "expiry": "2027-10-31",
-              "source": "Reg (EU) 2025/787"
-            },
-            {
-              "name": "Cyflumetofen",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2025-07-06",
-              "expiry": "2027-10-15",
-              "source": "Reg (EU) 2025/1489"
-            },
-            {
-              "name": "Mefentrifluconazole",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2025-07-06",
-              "expiry": "2029-03-20",
-              "source": "Reg (EU) 2019/337"
-            },
-            {
-              "name": "Benzyladenine",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2022-05-10",
-              "expiry": "2030-01-15",
-              "source": "Reg (EU) 2026/372"
-            },
-            {
-              "name": "Sulfoxaflor",
-              "status": "已批准",
-              "change": "MRL修订",
-              "changeDate": "2026-02-11",
-              "mrlChangeDate": "2026-02-11",
-              "expiry": "2028-01-18",
-              "source": "Reg (EU) 2025/787"
-            },
-            {
-              "name": "Benzovindiflupyr",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2024-06-11",
-              "expiry": "2029-01-02",
-              "source": "Reg (EU) 2026/1421"
-            },
-            {
-              "name": "Fluopicolide",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2021-11-06",
-              "expiry": "2029-01-31",
-              "source": "Reg (EU) 2026/1421"
-            },
-            {
-              "name": "Clopyralid",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2024-10-28",
-              "expiry": "2036-09-30",
-              "source": "Reg (EU) 2021/1191"
-            },
-            {
-              "name": "MCPA Potassium Salt",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2014-06-05",
-              "expiry": "2028-07-31",
-              "source": "Reg (EU) 2026/1421"
-            },
-            {
-              "name": "Cuprous Oxide",
-              "status": "已批准",
-              "change": "MRL修订",
-              "changeDate": "2026-05-05",
-              "mrlChangeDate": "2026-05-05",
-              "expiry": "2029-06-30",
-              "source": "Reg (EU) 2025/1489"
-            },
-            {
-              "name": "Copper Hydroxide",
-              "status": "已批准",
-              "change": "MRL修订",
-              "changeDate": "2026-05-05",
-              "mrlChangeDate": "2026-05-05",
-              "expiry": "2029-06-30",
-              "source": "Reg (EU) 2020/1093"
-            },
-            {
-              "name": "Dicamba",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2015-06-24",
-              "expiry": "2027-03-31",
-              "source": "Reg (EU) 2023/2592"
-            },
-            {
-              "name": "Chlorpyrifos",
-              "status": "未批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2020-11-13",
-              "expiry": "2020-01-16",
-              "source": "Reg (EU) 2020/18"
-            },
-            {
-              "name": "Bifenthrin",
-              "status": "未批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2018-06-05",
-              "expiry": "2019-07-31",
-              "source": "Reg (EU) 2022/801"
-            },
-            {
-              "name": "Thiabendazole",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2024-12-11",
-              "expiry": "2032-03-31",
-              "source": "Reg (EU) 2017/157"
-            },
-            {
-              "name": "Penoxsulam",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2019-05-01",
-              "expiry": "2027-05-15",
-              "source": "Reg (EU) 2026/372"
-            },
-            {
-              "name": "MCPP-P Potassium Salt",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2008-09-01",
-              "expiry": "2021-01-31",
-              "source": "Reg (EU) 2025/787"
-            },
-            {
-              "name": "Paclobutrazol",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2023-09-27",
-              "expiry": "2029-01-31",
-              "source": "Reg (EU) 2026/1421"
-            },
-            {
-              "name": "Halauxifen-methyl",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2016-02-11",
-              "expiry": "2028-01-05",
-              "source": "Reg (EU) 2025/787"
-            },
-            {
-              "name": "Diquat Dibromide",
-              "status": "未批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2017-01-14",
-              "expiry": "2018-11-14",
-              "source": "Reg (EU) 2018/1532"
-            },
-            {
-              "name": "Pyridate",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2023-04-13",
-              "expiry": "2030-12-31",
-              "source": "Reg (EU) 2015/1115"
-            },
-            {
-              "name": "Aminopyralid Potassium Salt",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2022-05-10",
-              "expiry": "2027-05-31",
-              "source": "Reg (EU) 2024/2781"
-            },
-            {
-              "name": "Thiencarbazone-methyl",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2022-01-27",
-              "expiry": "2027-03-01",
-              "source": "Reg (EU) 2024/1892"
-            },
-            {
-              "name": "Propamocarb Hydrochloride",
-              "status": "已批准",
-              "change": "拟变更",
-              "changeDate": "2025-07-23",
-              "mrlChangeDate": "2026-08-19",
-              "expiry": "2027-01-31",
-              "source": "Reg (EU) 2025/787"
-            },
-            {
-              "name": "Imazamox Sodium Salt",
-              "status": "已批准",
-              "change": "—",
-              "changeDate": "—",
-              "mrlChangeDate": "2022-01-03",
-              "expiry": "2027-06-30",
-              "source": "Reg (EU) 2025/99"
-            }
-          ]
+                {
+                  "priority": null,
+                  "name": "Cyprodinil",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2023-06-22",
+                  "status": "已批准",
+                  "expiry": "2027-07-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Diflufenican",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2017-04-26",
+                  "status": "已批准",
+                  "expiry": "2027-08-31"
+                },
+                {
+                  "priority": 12,
+                  "name": "Spinosad",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2023-02-28",
+                  "status": "已批准",
+                  "expiry": "2041-04-01"
+                },
+                {
+                  "priority": 65,
+                  "name": "Deltamethrin",
+                  "change": "拟变更",
+                  "changeDate": "2026-05-19",
+                  "sources": [],
+                  "mrlChangeDate": "2026-05-12",
+                  "status": "已批准",
+                  "expiry": "2028-06-30"
+                },
+                {
+                  "priority": 26,
+                  "name": "Fluroxypyr-meptyl",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2023-02-25",
+                  "status": "已批准",
+                  "expiry": "2027-02-15"
+                },
+                {
+                  "priority": 21,
+                  "name": "Azoxystrobin",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2025-07-23",
+                  "status": "已批准",
+                  "expiry": "2027-05-31"
+                },
+                {
+                  "priority": 79,
+                  "name": "Paraffin Oil",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2015-10-15",
+                  "status": "已批准",
+                  "expiry": "2021-12-31"
+                },
+                {
+                  "priority": 19,
+                  "name": "Fosetyl Aluminium",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2025-04-29",
+                  "status": "已批准",
+                  "expiry": "2028-01-31"
+                },
+                {
+                  "priority": 8,
+                  "name": "Mepiquat Chloride",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2025-07-06",
+                  "status": "已批准",
+                  "expiry": "2040-02-29"
+                },
+                {
+                  "priority": null,
+                  "name": "Mefenpyr-diethyl",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "—",
+                  "status": "无批准记录",
+                  "expiry": "—"
+                },
+                {
+                  "priority": null,
+                  "name": "Isoxadifen-ethyl",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "—",
+                  "status": "无批准记录",
+                  "expiry": "—"
+                },
+                {
+                  "priority": null,
+                  "name": "Cloquintocet-mexyl",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "—",
+                  "status": "无批准记录",
+                  "expiry": "—"
+                },
+                {
+                  "priority": null,
+                  "name": "Cyprosulfamide",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "—",
+                  "status": "无批准记录",
+                  "expiry": "—"
+                },
+                {
+                  "priority": null,
+                  "name": "Fluopyram",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2025-04-30",
+                  "status": "已批准",
+                  "expiry": "2028-06-15"
+                },
+                {
+                  "priority": null,
+                  "name": "Ethofumesate",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2017-07-11",
+                  "status": "已批准",
+                  "expiry": "2031-10-31"
+                },
+                {
+                  "priority": 30,
+                  "name": "Fenhexamid",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2023-06-22",
+                  "status": "已批准",
+                  "expiry": "2030-12-31"
+                },
+                {
+                  "priority": 63,
+                  "name": "Fenpyroximate",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2023-06-22",
+                  "status": "已批准",
+                  "expiry": "2028-01-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Abamectin",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2023-08-20",
+                  "status": "已批准",
+                  "expiry": "2038-03-31"
+                },
+                {
+                  "priority": 6,
+                  "name": "Acetamiprid",
+                  "change": "MRL修订",
+                  "changeDate": "2026-05-12",
+                  "sources": [],
+                  "mrlChangeDate": "2026-05-12",
+                  "status": "已批准",
+                  "expiry": "2033-02-28"
+                },
+                {
+                  "priority": 54,
+                  "name": "Bixafen",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2023-06-22",
+                  "status": "已批准",
+                  "expiry": "2027-10-31"
+                },
+                {
+                  "priority": 8,
+                  "name": "Metconazole",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2016-11-24",
+                  "status": "已批准",
+                  "expiry": "2031-08-31"
+                },
+                {
+                  "priority": 14,
+                  "name": "Flumioxazin",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2015-05-13",
+                  "status": "已批准",
+                  "expiry": "2037-02-28"
+                },
+                {
+                  "priority": null,
+                  "name": "2,4-D 2-Ethylhexyl Ester",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2023-02-25",
+                  "status": "已批准",
+                  "expiry": "2030-12-31"
+                },
+                {
+                  "priority": 1,
+                  "name": "Isoxaflutole",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2023-06-22",
+                  "status": "已批准",
+                  "expiry": "2034-07-31"
+                },
+                {
+                  "priority": 2,
+                  "name": "Clethodim",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2008-09-01",
+                  "status": "已批准",
+                  "expiry": "2027-12-15"
+                },
+                {
+                  "priority": 7,
+                  "name": "Trinexapac-ethyl",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2017-07-11",
+                  "status": "已批准",
+                  "expiry": "2039-04-30"
+                },
+                {
+                  "priority": 47,
+                  "name": "Difenoconazole",
+                  "change": "拟变更",
+                  "changeDate": "2026-05-19",
+                  "sources": [],
+                  "mrlChangeDate": "2024-10-28",
+                  "status": "已批准",
+                  "expiry": "2028-01-31"
+                },
+                {
+                  "priority": 20,
+                  "name": "Quizalofop-P-ethyl",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2023-09-14",
+                  "status": "已批准",
+                  "expiry": "2027-02-28"
+                },
+                {
+                  "priority": null,
+                  "name": "Metamitron",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2021-11-10",
+                  "status": "已批准",
+                  "expiry": "2026-11-30"
+                },
+                {
+                  "priority": null,
+                  "name": "Metazachlor",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2024-05-06",
+                  "status": "已批准",
+                  "expiry": "2029-05-31"
+                },
+                {
+                  "priority": 35,
+                  "name": "Iodosulfuron-methyl-sodium",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2024-11-06",
+                  "status": "已批准",
+                  "expiry": "2032-03-31"
+                },
+                {
+                  "priority": 37,
+                  "name": "Imazamox Ammonium Salt",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2022-01-03",
+                  "status": "已批准",
+                  "expiry": "2027-06-30"
+                },
+                {
+                  "priority": 38,
+                  "name": "Flonicamid",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2024-10-28",
+                  "status": "已批准",
+                  "expiry": "2026-11-30"
+                },
+                {
+                  "priority": 4,
+                  "name": "Pinoxaden",
+                  "change": "拟变更",
+                  "changeDate": "2026-05-19",
+                  "sources": [],
+                  "mrlChangeDate": "2023-02-22",
+                  "status": "已批准",
+                  "expiry": "2029-12-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Foramsulfuron",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2014-10-11",
+                  "status": "已批准",
+                  "expiry": "2035-05-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Pendimethalin",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2023-06-20",
+                  "status": "已批准",
+                  "expiry": "2027-01-15"
+                },
+                {
+                  "priority": 15,
+                  "name": "Mesotrione",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2024-11-06",
+                  "status": "已批准",
+                  "expiry": "2032-05-31"
+                },
+                {
+                  "priority": 13,
+                  "name": "Tefluthrin",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2025-07-23",
+                  "status": "已批准",
+                  "expiry": "2027-05-31"
+                },
+                {
+                  "priority": 10,
+                  "name": "Captan",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2019-07-11",
+                  "status": "已批准",
+                  "expiry": "2039-10-31"
+                },
+                {
+                  "priority": 57,
+                  "name": "Pyriproxyfen",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2024-04-02",
+                  "status": "已批准",
+                  "expiry": "2035-07-31"
+                },
+                {
+                  "priority": 55,
+                  "name": "Bentazone Sodium Salt",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2021-11-02",
+                  "status": "已批准",
+                  "expiry": "2027-10-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Propyzamide",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2015-05-13",
+                  "status": "已批准",
+                  "expiry": "2027-11-30"
+                },
+                {
+                  "priority": 43,
+                  "name": "Nicosulfuron",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2015-01-02",
+                  "status": "已批准",
+                  "expiry": "2027-03-31"
+                },
+                {
+                  "priority": 5,
+                  "name": "Boscalid",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2022-08-18",
+                  "status": "已批准",
+                  "expiry": "2028-03-31"
+                },
+                {
+                  "priority": 5,
+                  "name": "Pyraclostrobin",
+                  "change": "MRL修订",
+                  "changeDate": "2026-02-11",
+                  "sources": [],
+                  "mrlChangeDate": "2026-02-11",
+                  "status": "已批准",
+                  "expiry": "2026-12-15"
+                },
+                {
+                  "priority": 36,
+                  "name": "Chlorantraniliprole",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2024-06-11",
+                  "status": "已批准",
+                  "expiry": "2027-05-31"
+                },
+                {
+                  "priority": 3,
+                  "name": "Folpet",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2023-06-19",
+                  "status": "已批准",
+                  "expiry": "2039-10-31"
+                },
+                {
+                  "priority": 24,
+                  "name": "Potassium Phosphonates",
+                  "change": "MRL修订",
+                  "changeDate": "2026-05-12",
+                  "sources": [],
+                  "mrlChangeDate": "2026-05-12",
+                  "status": "已批准",
+                  "expiry": "2029-07-31"
+                },
+                {
+                  "priority": 100,
+                  "name": "Propaquizafop",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2023-09-14",
+                  "status": "已批准",
+                  "expiry": "2027-02-28"
+                },
+                {
+                  "priority": 51,
+                  "name": "Flazasulfuron",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2023-02-25",
+                  "status": "已批准",
+                  "expiry": "2032-07-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Fluroxypyr",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2023-02-25",
+                  "status": "已批准",
+                  "expiry": "2027-02-15"
+                },
+                {
+                  "priority": 28,
+                  "name": "Florasulam",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2023-02-25",
+                  "status": "已批准",
+                  "expiry": "2030-12-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Cyflufenamid",
+                  "change": "MRL修订",
+                  "changeDate": "2026-04-20",
+                  "sources": [],
+                  "mrlChangeDate": "2026-04-20",
+                  "status": "已批准",
+                  "expiry": "2027-06-30"
+                },
+                {
+                  "priority": null,
+                  "name": "Carfentrazone-ethyl",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2021-05-17",
+                  "status": "已批准",
+                  "expiry": "2033-07-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Dimethenamid-P",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2019-11-18",
+                  "status": "已批准",
+                  "expiry": "2034-08-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Clodinafop-propargyl",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2014-03-06",
+                  "status": "已批准",
+                  "expiry": "2027-07-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Silthiofam",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2023-02-25",
+                  "status": "已批准",
+                  "expiry": "2033-06-30"
+                },
+                {
+                  "priority": null,
+                  "name": "Pyraflufen-ethyl",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2024-11-06",
+                  "status": "已批准",
+                  "expiry": "2031-03-31"
+                },
+                {
+                  "priority": 25,
+                  "name": "Prothioconazole",
+                  "change": "拟变更",
+                  "changeDate": "2026-05-19",
+                  "sources": [],
+                  "mrlChangeDate": "2024-06-05",
+                  "status": "已批准",
+                  "expiry": "2027-03-31"
+                },
+                {
+                  "priority": 29,
+                  "name": "Prosulfocarb",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2023-02-26",
+                  "status": "已批准",
+                  "expiry": "2027-01-31"
+                },
+                {
+                  "priority": 25,
+                  "name": "Spiroxamine",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2016-04-19",
+                  "status": "已批准",
+                  "expiry": "2029-11-30"
+                },
+                {
+                  "priority": 31,
+                  "name": "2,4-D",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2023-02-25",
+                  "status": "已批准",
+                  "expiry": "2030-12-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Trinexapac",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2017-07-11",
+                  "status": "已批准",
+                  "expiry": "2039-04-30"
+                },
+                {
+                  "priority": null,
+                  "name": "Oxathiapiprolin",
+                  "change": "MRL修订",
+                  "changeDate": "2026-05-12",
+                  "sources": [],
+                  "mrlChangeDate": "2026-05-12",
+                  "status": "已批准",
+                  "expiry": "2027-03-03"
+                },
+                {
+                  "priority": 56,
+                  "name": "Chlormequat Chloride",
+                  "change": "拟变更",
+                  "changeDate": "2026-02-11",
+                  "sources": [],
+                  "mrlChangeDate": "2026-02-11",
+                  "status": "已批准",
+                  "expiry": "2027-02-28"
+                },
+                {
+                  "priority": 42,
+                  "name": "MCPA Dimethylamine Salt",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2014-06-05",
+                  "status": "已批准",
+                  "expiry": "2028-07-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Fluazifop-P-butyl",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2022-08-18",
+                  "status": "未批准",
+                  "expiry": "—"
+                },
+                {
+                  "priority": null,
+                  "name": "Fludioxonil",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2022-08-10",
+                  "status": "已批准",
+                  "expiry": "2027-09-30"
+                },
+                {
+                  "priority": null,
+                  "name": "Dicamba Dimethylamine Salt",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2015-06-24",
+                  "status": "已批准",
+                  "expiry": "2027-03-31"
+                },
+                {
+                  "priority": 77,
+                  "name": "Mandipropamid",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2024-10-29",
+                  "status": "已批准",
+                  "expiry": "2029-06-30"
+                },
+                {
+                  "priority": null,
+                  "name": "Trifloxystrobin",
+                  "change": "MRL修订",
+                  "changeDate": "2026-02-11",
+                  "sources": [],
+                  "mrlChangeDate": "2026-02-11",
+                  "status": "已批准",
+                  "expiry": "2033-07-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Pyrimethanil",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2024-05-06",
+                  "status": "已批准",
+                  "expiry": "2041-04-30"
+                },
+                {
+                  "priority": 48,
+                  "name": "Clomazone",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2019-01-01",
+                  "status": "已批准",
+                  "expiry": "2027-12-31"
+                },
+                {
+                  "priority": 49,
+                  "name": "Cymoxanil",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2023-02-25",
+                  "status": "已批准",
+                  "expiry": "2027-11-30"
+                },
+                {
+                  "priority": null,
+                  "name": "Dicamba Sodium Salt",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2015-06-24",
+                  "status": "已批准",
+                  "expiry": "2027-03-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Ferric Phosphate",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2008-09-01",
+                  "status": "已批准",
+                  "expiry": "2030-12-31"
+                },
+                {
+                  "priority": 60,
+                  "name": "Aclonifen",
+                  "change": "MRL修订",
+                  "changeDate": "2026-05-12",
+                  "sources": [],
+                  "mrlChangeDate": "2026-05-12",
+                  "status": "已批准",
+                  "expiry": "2029-03-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Tebufenpyrad",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2025-04-28",
+                  "status": "已批准",
+                  "expiry": "2027-01-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Tebuconazole",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2018-11-01",
+                  "status": "已批准",
+                  "expiry": "2028-07-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Thifensulfuron-methyl",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2015-01-02",
+                  "status": "已批准",
+                  "expiry": "2031-10-31"
+                },
+                {
+                  "priority": null,
+                  "name": "2,4-D Dimethylamine Salt",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2023-02-25",
+                  "status": "已批准",
+                  "expiry": "2030-12-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Azadirachtin",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2008-09-01",
+                  "status": "已批准",
+                  "expiry": "2027-01-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Thiabendazole Hypophosphite",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2024-12-11",
+                  "status": "已批准",
+                  "expiry": "2032-03-31"
+                },
+                {
+                  "priority": 100,
+                  "name": "Metobromuron",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2023-08-16",
+                  "status": "已批准",
+                  "expiry": "2027-05-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Fosthiazate",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2008-09-01",
+                  "status": "已批准",
+                  "expiry": "2027-01-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Imazamox",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2022-01-03",
+                  "status": "已批准",
+                  "expiry": "2027-06-30"
+                },
+                {
+                  "priority": null,
+                  "name": "Hexythiazox",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2025-07-23",
+                  "status": "已批准",
+                  "expiry": "2027-01-31"
+                },
+                {
+                  "priority": 9,
+                  "name": "Tribenuron-methyl",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2016-01-21",
+                  "status": "已批准",
+                  "expiry": "2034-01-30"
+                },
+                {
+                  "priority": null,
+                  "name": "Metrafenone",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2018-06-05",
+                  "status": "已批准",
+                  "expiry": "2039-10-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Flurochloridone",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2020-01-04",
+                  "status": "已批准",
+                  "expiry": "2027-10-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Buprofezin",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2019-08-13",
+                  "status": "已批准",
+                  "expiry": "2026-12-15"
+                },
+                {
+                  "priority": null,
+                  "name": "Hymexazol",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2021-11-10",
+                  "status": "已批准",
+                  "expiry": "2029-01-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Penconazole",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2025-08-24",
+                  "status": "已批准",
+                  "expiry": "2029-02-15"
+                },
+                {
+                  "priority": 33,
+                  "name": "Zoxamide",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2025-08-19",
+                  "status": "已批准",
+                  "expiry": "2033-06-30"
+                },
+                {
+                  "priority": null,
+                  "name": "MCPP-P",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2008-09-01",
+                  "status": "已批准",
+                  "expiry": "2021-01-31"
+                },
+                {
+                  "priority": null,
+                  "name": "MCPB",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2014-06-05",
+                  "status": "已批准",
+                  "expiry": "2028-07-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Glyphosate",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2013-04-06",
+                  "status": "已批准",
+                  "expiry": "2033-12-15"
+                },
+                {
+                  "priority": null,
+                  "name": "MCPA",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2014-06-05",
+                  "status": "已批准",
+                  "expiry": "2028-07-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Myclobutanil",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2021-01-02",
+                  "status": "未批准",
+                  "expiry": "2021-05-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Dithianon",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2024-12-05",
+                  "status": "已批准",
+                  "expiry": "2027-01-31"
+                },
+                {
+                  "priority": 35,
+                  "name": "Mesosulfuron-methyl",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2014-10-11",
+                  "status": "已批准",
+                  "expiry": "2032-06-30"
+                },
+                {
+                  "priority": null,
+                  "name": "Oxyfluorfen",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2023-02-21",
+                  "status": "已批准",
+                  "expiry": "2027-05-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Cyantraniliprole",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2025-07-06",
+                  "status": "已批准",
+                  "expiry": "2030-03-14"
+                },
+                {
+                  "priority": null,
+                  "name": "Dimethomorph",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2021-05-25",
+                  "status": "未批准",
+                  "expiry": "2024-05-20"
+                },
+                {
+                  "priority": null,
+                  "name": "Emamectin Benzoate",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2024-06-11",
+                  "status": "已批准",
+                  "expiry": "2026-11-15"
+                },
+                {
+                  "priority": null,
+                  "name": "Tribenuron",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2016-01-21",
+                  "status": "已批准",
+                  "expiry": "2034-01-30"
+                },
+                {
+                  "priority": null,
+                  "name": "Ethephon",
+                  "change": "拟变更",
+                  "changeDate": "2025-06-23",
+                  "sources": [],
+                  "mrlChangeDate": "2026-08-19",
+                  "status": "已批准",
+                  "expiry": "2039-01-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Dichlorprop-P",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2025-04-17",
+                  "status": "已批准",
+                  "expiry": "2027-10-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Halosulfuron-methyl",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2008-09-01",
+                  "status": "已批准",
+                  "expiry": "2026-11-15"
+                },
+                {
+                  "priority": null,
+                  "name": "Prosulfuron",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2015-01-02",
+                  "status": "已批准",
+                  "expiry": "2029-12-15"
+                },
+                {
+                  "priority": null,
+                  "name": "Quinmerac",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2023-02-21",
+                  "status": "已批准",
+                  "expiry": "2026-12-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Chlorothalonil",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2021-09-02",
+                  "status": "未批准",
+                  "expiry": "2019-05-20"
+                },
+                {
+                  "priority": null,
+                  "name": "Picloram",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2025-07-23",
+                  "status": "已批准",
+                  "expiry": "2028-02-15"
+                },
+                {
+                  "priority": null,
+                  "name": "Methoxyfenozide",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2026-01-06",
+                  "status": "未批准",
+                  "expiry": "2026-03-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Indoxacarb",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2024-08-14",
+                  "status": "未批准",
+                  "expiry": "2021-12-19"
+                },
+                {
+                  "priority": null,
+                  "name": "S-metolachlor",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2026-01-06",
+                  "status": "未批准",
+                  "expiry": "2024-01-22"
+                },
+                {
+                  "priority": null,
+                  "name": "Cyazofamid",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2020-07-09",
+                  "status": "已批准",
+                  "expiry": "2036-07-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Spiromesifen",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2024-06-11",
+                  "status": "未批准",
+                  "expiry": "2023-09-30"
+                },
+                {
+                  "priority": null,
+                  "name": "Flumetralin",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2016-04-26",
+                  "status": "未批准",
+                  "expiry": "2025-01-15"
+                },
+                {
+                  "priority": null,
+                  "name": "Imidacloprid",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2022-05-16",
+                  "status": "未批准",
+                  "expiry": "2020-12-01"
+                },
+                {
+                  "priority": null,
+                  "name": "Lambda-cyhalothrin",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2025-02-11",
+                  "status": "已批准",
+                  "expiry": "2029-01-31"
+                },
+                {
+                  "priority": 45,
+                  "name": "Prohexadione-calcium",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2021-07-08",
+                  "status": "已批准",
+                  "expiry": "2028-05-15"
+                },
+                {
+                  "priority": null,
+                  "name": "Kresoxim-methyl",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2020-07-09",
+                  "status": "已批准",
+                  "expiry": "2027-05-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Rimsulfuron",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2015-01-02",
+                  "status": "已批准",
+                  "expiry": "2028-08-15"
+                },
+                {
+                  "priority": null,
+                  "name": "Fluazinam",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2018-02-06",
+                  "status": "已批准",
+                  "expiry": "2027-11-30"
+                },
+                {
+                  "priority": null,
+                  "name": "Cyhalofop-butyl",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2023-02-25",
+                  "status": "已批准",
+                  "expiry": "2032-06-30"
+                },
+                {
+                  "priority": null,
+                  "name": "Bentazone",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2021-11-02",
+                  "status": "已批准",
+                  "expiry": "2027-10-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Florpyrauxifen-benzyl",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2019-11-18",
+                  "status": "已批准",
+                  "expiry": "2029-07-24"
+                },
+                {
+                  "priority": null,
+                  "name": "Phenmedipham",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2016-06-09",
+                  "status": "已批准",
+                  "expiry": "2027-09-30"
+                },
+                {
+                  "priority": null,
+                  "name": "Terbuthylazine",
+                  "change": "拟变更",
+                  "changeDate": "2026-02-06",
+                  "sources": [],
+                  "mrlChangeDate": "2021-11-06",
+                  "status": "已批准",
+                  "expiry": "2027-05-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Etoxazole",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2024-04-08",
+                  "status": "已批准",
+                  "expiry": "2028-01-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Metsulfuron-methyl",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2015-01-02",
+                  "status": "已批准",
+                  "expiry": "2029-07-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Amidosulfuron",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2025-07-23",
+                  "status": "已批准",
+                  "expiry": "2026-11-30"
+                },
+                {
+                  "priority": null,
+                  "name": "Flufenacet",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2015-05-13",
+                  "status": "未批准",
+                  "expiry": "2025-06-10"
+                },
+                {
+                  "priority": null,
+                  "name": "Bifenazate",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2024-10-14",
+                  "status": "已批准",
+                  "expiry": "2037-06-30"
+                },
+                {
+                  "priority": null,
+                  "name": "Tembotrione",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2020-04-07",
+                  "status": "已批准",
+                  "expiry": "2026-12-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Spirotetramat",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2023-06-20",
+                  "status": "未批准",
+                  "expiry": "2024-04-30"
+                },
+                {
+                  "priority": null,
+                  "name": "Aminopyralid",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2022-05-10",
+                  "status": "已批准",
+                  "expiry": "2027-05-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Metribuzin",
+                  "change": "拟变更",
+                  "changeDate": "2026-02-06",
+                  "sources": [],
+                  "mrlChangeDate": "2017-04-26",
+                  "status": "未批准",
+                  "expiry": "2024-11-24"
+                },
+                {
+                  "priority": null,
+                  "name": "Propamocarb",
+                  "change": "拟变更",
+                  "changeDate": "2025-07-23",
+                  "sources": [],
+                  "mrlChangeDate": "2026-08-19",
+                  "status": "已批准",
+                  "expiry": "2027-01-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Thiencarbazone",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2022-01-27",
+                  "status": "已批准",
+                  "expiry": "2027-03-01"
+                },
+                {
+                  "priority": null,
+                  "name": "Pyroxsulam",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2023-02-21",
+                  "status": "已批准",
+                  "expiry": "2027-09-30"
+                },
+                {
+                  "priority": null,
+                  "name": "Fenoxaprop-P-ethyl",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2008-09-01",
+                  "status": "已批准",
+                  "expiry": "2026-11-30"
+                },
+                {
+                  "priority": null,
+                  "name": "Triclopyr Butoxyethyl Ester",
+                  "change": "拟变更",
+                  "changeDate": "2026-02-06",
+                  "sources": [],
+                  "mrlChangeDate": "2023-04-13",
+                  "status": "已批准",
+                  "expiry": "2027-03-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Clopyralid Olamine Salt",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2024-10-28",
+                  "status": "已批准",
+                  "expiry": "2036-09-30"
+                },
+                {
+                  "priority": 82,
+                  "name": "Copper Oxychloride",
+                  "change": "MRL修订",
+                  "changeDate": "2026-05-05",
+                  "sources": [],
+                  "mrlChangeDate": "2026-05-05",
+                  "status": "已批准",
+                  "expiry": "2029-06-30"
+                },
+                {
+                  "priority": 17,
+                  "name": "Glyphosate Isopropylamine Salt",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2013-04-06",
+                  "status": "已批准",
+                  "expiry": "2033-12-15"
+                },
+                {
+                  "priority": null,
+                  "name": "Prohexadione",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2021-07-08",
+                  "status": "已批准",
+                  "expiry": "2028-05-15"
+                },
+                {
+                  "priority": null,
+                  "name": "1-Naphthylacetic Acid",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2017-01-19",
+                  "status": "已批准",
+                  "expiry": "2029-11-30"
+                },
+                {
+                  "priority": null,
+                  "name": "Dodine",
+                  "change": "拟变更",
+                  "changeDate": "2026-05-19",
+                  "sources": [],
+                  "mrlChangeDate": "2022-08-14",
+                  "status": "已批准",
+                  "expiry": "2028-06-30"
+                },
+                {
+                  "priority": null,
+                  "name": "Gibberellic Acid",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2014-06-23",
+                  "status": "已批准",
+                  "expiry": "2040-12-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Fluxapyroxad",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2025-02-11",
+                  "status": "已批准",
+                  "expiry": "2027-10-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Cyflumetofen",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2025-07-06",
+                  "status": "已批准",
+                  "expiry": "2027-10-15"
+                },
+                {
+                  "priority": null,
+                  "name": "Mefentrifluconazole",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2025-07-06",
+                  "status": "已批准",
+                  "expiry": "2029-03-20"
+                },
+                {
+                  "priority": null,
+                  "name": "Benzyladenine",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2022-05-10",
+                  "status": "已批准",
+                  "expiry": "2030-01-15"
+                },
+                {
+                  "priority": null,
+                  "name": "Sulfoxaflor",
+                  "change": "MRL修订",
+                  "changeDate": "2026-02-11",
+                  "sources": [],
+                  "mrlChangeDate": "2026-02-11",
+                  "status": "已批准",
+                  "expiry": "2028-01-18"
+                },
+                {
+                  "priority": null,
+                  "name": "Benzovindiflupyr",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2024-06-11",
+                  "status": "已批准",
+                  "expiry": "2029-01-02"
+                },
+                {
+                  "priority": null,
+                  "name": "Fluopicolide",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2021-11-06",
+                  "status": "已批准",
+                  "expiry": "2029-01-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Clopyralid",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2024-10-28",
+                  "status": "已批准",
+                  "expiry": "2036-09-30"
+                },
+                {
+                  "priority": null,
+                  "name": "MCPA Potassium Salt",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2014-06-05",
+                  "status": "已批准",
+                  "expiry": "2028-07-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Cuprous Oxide",
+                  "change": "MRL修订",
+                  "changeDate": "2026-05-05",
+                  "sources": [],
+                  "mrlChangeDate": "2026-05-05",
+                  "status": "已批准",
+                  "expiry": "2029-06-30"
+                },
+                {
+                  "priority": 81,
+                  "name": "Copper Hydroxide",
+                  "change": "MRL修订",
+                  "changeDate": "2026-05-05",
+                  "sources": [],
+                  "mrlChangeDate": "2026-05-05",
+                  "status": "已批准",
+                  "expiry": "2029-06-30"
+                },
+                {
+                  "priority": null,
+                  "name": "Dicamba",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2015-06-24",
+                  "status": "已批准",
+                  "expiry": "2027-03-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Chlorpyrifos",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2020-11-13",
+                  "status": "未批准",
+                  "expiry": "2020-01-16"
+                },
+                {
+                  "priority": null,
+                  "name": "Bifenthrin",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2018-06-05",
+                  "status": "未批准",
+                  "expiry": "2019-07-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Thiabendazole",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2024-12-11",
+                  "status": "已批准",
+                  "expiry": "2032-03-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Penoxsulam",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2019-05-01",
+                  "status": "已批准",
+                  "expiry": "2027-05-15"
+                },
+                {
+                  "priority": null,
+                  "name": "MCPP-P Potassium Salt",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2008-09-01",
+                  "status": "已批准",
+                  "expiry": "2021-01-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Paclobutrazol",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2023-09-27",
+                  "status": "已批准",
+                  "expiry": "2029-01-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Halauxifen-methyl",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2016-02-11",
+                  "status": "已批准",
+                  "expiry": "2028-01-05"
+                },
+                {
+                  "priority": null,
+                  "name": "Diquat Dibromide",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2017-01-14",
+                  "status": "未批准",
+                  "expiry": "2018-11-14"
+                },
+                {
+                  "priority": null,
+                  "name": "Pyridate",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2023-04-13",
+                  "status": "已批准",
+                  "expiry": "2030-12-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Aminopyralid Potassium Salt",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2022-05-10",
+                  "status": "已批准",
+                  "expiry": "2027-05-31"
+                },
+                {
+                  "priority": 1,
+                  "name": "Thiencarbazone-methyl",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2022-01-27",
+                  "status": "已批准",
+                  "expiry": "2027-03-01"
+                },
+                {
+                  "priority": null,
+                  "name": "Propamocarb Hydrochloride",
+                  "change": "拟变更",
+                  "changeDate": "2025-07-23",
+                  "sources": [],
+                  "mrlChangeDate": "2026-08-19",
+                  "status": "已批准",
+                  "expiry": "2027-01-31"
+                },
+                {
+                  "priority": null,
+                  "name": "Imazamox Sodium Salt",
+                  "change": "—",
+                  "changeDate": "—",
+                  "sources": [],
+                  "mrlChangeDate": "2022-01-03",
+                  "status": "已批准",
+                  "expiry": "2027-06-30"
+                }
+              ]
         }
       ]
     },
@@ -4398,16 +4614,51 @@ window.RB_CONFIG = {
       return false;
     }
 
-    /* 过滤统一后的 substances 单表: 无实际值变更的物质也清掉 */
+    /* MRL修订信号: 现行法规 applied ≥ cutoff(近 6 月) 且 现行 vs 历史 任一作物 MRL 值不同。
+       与"拟变更"(草案 vs 现行)独立, 二者可并存。
+       例: Deltamethrin 现行 Reg 2026/876 在 2026-05-12 生效, 把 Cherry 0.1→0.15,
+       故同时有"拟变更"(PLAN/2025/3053 改 48 作物)与"MRL修订"(现行近期已修订)。 */
+    function hasRecentMrlRevision(name){
+      var mrl = M[String(name||'').toLowerCase()];
+      if(!mrl || !Array.isArray(mrl.cols)) return false;
+      var app = null, hist = null;
+      for(var i=0;i<mrl.cols.length;i++){
+        var c = mrl.cols[i];
+        if(c.status==='Applicable' && !app) app = c;
+        else if(c.status==='No longer applicable' && !hist) hist = c;
+      }
+      if(!app || !hist) return false;
+      var applied = app.applied;
+      if(!applied) return false;
+      var m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(applied);
+      if(!m) return false;
+      var dt = new Date(m[3]+'-'+m[2]+'-'+m[1]);
+      if(isNaN(dt.getTime()) || dt < cutoff) return false;
+      var cells = mrl.cells || {}, rows = mrl.rows || [];
+      for(var j=0;j<rows.length;j++){
+        var code = rows[j].code;
+        var av = cells[code+'|'+app.reg];
+        var hv = cells[code+'|'+hist.reg];
+        if(av!==undefined && av!==null && av!=='' && av!=='—'
+           && hv!==undefined && hv!==null && hv!=='' && hv!=='—'
+           && String(av) !== String(hv)) return true;
+      }
+      return false;
+    }
+
+    /* 过滤统一后的 substances 单表: 用双信号(拟变更 + MRL修订)重算每行的变更标签 */
     (window.RB_CONFIG.views||[]).forEach(function(view){
       (view.blocks||[]).forEach(function(b){
         if(b.type==='table' && b.id==='substances' && Array.isArray(b.rows)){
           b.rows.forEach(function(r){
-            if(r.change && r.change !== DASH && r.name){
-              if(!hasRealProposedChange(r.name)){
-                r.change = DASH;
-              }
-            }
+            if(!r.name) return;
+            var proposed = hasRealProposedChange(r.name);
+            var revised  = hasRecentMrlRevision(r.name);
+            var lbl = DASH;
+            if(proposed && revised) lbl = '拟变更 · MRL修订';
+            else if(proposed) lbl = '拟变更';
+            else if(revised) lbl = 'MRL修订';
+            r.change = lbl;
           });
         }
       });
@@ -4438,11 +4689,11 @@ window.RB_CONFIG = {
     });
     if(window.RB_CONFIG.i18n && window.RB_CONFIG.i18n.zh){
       window.RB_CONFIG.i18n.zh.kpi_recent_n = '\u53d8\u66f4\u65e5 \u2265 ' + cutoffISO;
-      window.RB_CONFIG.i18n.zh.sec_changes_n = '\u8fd1 6 \u4e2a\u6708\u5185\u6709\u53d8\u66f4\u4fe1\u53f7\u7684\u7269\u8d28\uff1b' + recentCount + ' \u4e2a\u3002\u53d8\u66f4\u65e5\u65e9\u4e8e ' + cutoffISO + ' \u7684\u4e0d\u518d\u6807\u6ce8\u3002';
+      window.RB_CONFIG.i18n.zh.sec_changes_n = '\u8fd1 6 \u4e2a\u6708\u5185\u6709\u53d8\u66f4\u4fe1\u53f7\u7684\u7269\u8d28\u5171 ' + recentCount + ' \u4e2a\uff1b\u62df\u53d8\u66f4 = \u8349\u6848\u5f85\u751f\u6548\uff0cMRL\u4fee\u8ba2 = \u73b0\u884c\u6cd5\u89c4\u8fd1\u671f\u5df2\u751f\u6548\u3002\u53d8\u66f4\u65e5\u65e9\u4e8e ' + cutoffISO + ' \u7684\u4e0d\u518d\u6807\u6ce8\u3002';
     }
     if(window.RB_CONFIG.i18n && window.RB_CONFIG.i18n.en){
       window.RB_CONFIG.i18n.en.kpi_recent_n = 'Change date ≥ ' + cutoffISO;
-      window.RB_CONFIG.i18n.en.sec_changes_n = 'Substances with a change signal in the last 6 months; ' + recentCount + ' in total. Those with a change date before ' + cutoffISO + ' are no longer flagged.';
+      window.RB_CONFIG.i18n.en.sec_changes_n = 'Substances with a change signal in the last 6 months: ' + recentCount + ' in total. Proposed = draft pending; MRL revised = current regulation recently applied. Change dates before ' + cutoffISO + ' are excluded.';
     }
   } catch(e) { if(window.console) console.error('matrix-date filter failed:', e); }
 })();
@@ -4560,8 +4811,13 @@ window.RB_CONFIG = {
       return ka-kb;
     });
     /* 现行列(用于拟变更单元格与现行值相同时标"无变化")*/
-    var appCol = null;
-    for(var _ci=0;_ci<visCols.length;_ci++){ if(visCols[_ci].status==='Applicable'){ appCol = visCols[_ci]; break; } }
+    var appCol = null, propCol = null, histCol = null;
+    for(var _ci=0;_ci<visCols.length;_ci++){
+      var _st=visCols[_ci].status;
+      if(_st==='Applicable' && !appCol) appCol = visCols[_ci];
+      else if(_st==='Not yet applicable' && !propCol) propCol = visCols[_ci];
+      else if(_st==='No longer applicable' && !histCol) histCol = visCols[_ci];
+    }
     if(visCols.length===0){ wrap.innerHTML='<div class="mrl-empty">'+T('m_selstatus')+'</div>'; document.getElementById('mrl-rowcount').textContent=''; return; }
     var rows=cur.rows;
     if(onlyChanged) rows=rows.filter(isRowChanged);
@@ -4586,7 +4842,23 @@ window.RB_CONFIG = {
     var tbody='<tbody>';
     rows.forEach(function(row){
       var chg=isRowChanged(row);
-      tbody+='<tr class="'+(chg?'mrl-changed':'')+'"><td class="mrl-crop" style="'+firstColStyle+'"><div class="mrl-crop-inner">'+esc(row.code)+' '+esc(row.name)+'</div></td>';
+      /* 行底纹: 拟变更≠现行 → 橙; 否则现行≠历史 → 绿; 都无 → 无 */
+      var rowTintCls='';
+      if(propCol && appCol){
+        var _pv=cur.cells[row.code+'|'+propCol.reg];
+        var _av=cur.cells[row.code+'|'+appCol.reg];
+        if(isRealVal(_pv) && isRealVal(_av) && String(_pv)!==String(_av)){
+          rowTintCls=' mrl-row-prop-curr-diff';
+        }
+      }
+      if(!rowTintCls && appCol && histCol){
+        var _av2=cur.cells[row.code+'|'+appCol.reg];
+        var _hv=cur.cells[row.code+'|'+histCol.reg];
+        if(isRealVal(_av2) && isRealVal(_hv) && String(_av2)!==String(_hv)){
+          rowTintCls=' mrl-row-curr-hist-diff';
+        }
+      }
+      tbody+='<tr class="'+(chg?'mrl-changed':'')+rowTintCls+'"><td class="mrl-crop" style="'+firstColStyle+'"><div class="mrl-crop-inner">'+esc(row.code)+' '+esc(row.name)+'</div></td>';
       visCols.forEach(function(col){
         var key=row.code+'|'+col.reg;
         var raw=cur.cells[key];
@@ -4632,7 +4904,7 @@ window.RB_CONFIG = {
   if(main){ main.addEventListener('click', function(e){
     var row=e.target.closest? e.target.closest('.rbv-row'):null; if(!row) return;
     /* 取行内第一个 .rbv-td（主列 = 活性物质名）的文本 */
-    var first=row.querySelector('.rbv-td');
+    var first=row.querySelector('.rbv-td[data-col="name"]') || row.querySelector('.rbv-td');
     var cellText=first? (first.textContent||'').trim():''; if(!cellText) return;
     /* 行内可能附了 EFSA 链接(由 EFSA 富化包装追加),导致 cellText = "<name>EFSA <qid> <status>"(注意无空格分隔)。
        先做精确匹配,再做"最长前缀"兜底匹配,避免被 EFSA 后缀污染。 */
