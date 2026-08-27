@@ -654,6 +654,8 @@ button { font-family: inherit; }
 .mrl-crop-inner{ display:block; padding:7px 10px; line-height:1.4; word-break:break-word; overflow-wrap:anywhere; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
 .mrl-cell{ color:var(--rb-text); font-variant-numeric:tabular-nums; }
 .mrl-empty-cell{ color:var(--rb-text-light); }
+.mrl-noinfo{ color:#9aa0a6; font-size:11px; font-style:italic; letter-spacing:.3px; }
+.mrl-unchanged{ color:var(--rb-text-light); position:relative; cursor:help; }
 .mrl-changed .mrl-crop{ background:var(--rb-mint-2); box-shadow:inset 3px 0 0 var(--rb-cat-3); }
 .mrl-changed td{ background:var(--rb-mint-2); }
 .mrl-empty{ padding:40px; text-align:center; color:var(--rb-text-light); font-size:14px; }
@@ -2134,6 +2136,10 @@ window.RB_CONFIG = {
       "m_voted": "投票",
       "m_applied": "适用",
       "m_no_data": "暂无该物质的 MRL 矩阵数据",
+      "m_noinfo": "无信息",
+      "m_noinfo_tip": "该法规下此作物无 MRL 数据（EC datalake 未收录）",
+      "m_unchanged_tip": "拟变更值与现行值相同（无变化）",
+      "m_legend": "  ·  <i>无信息</i> = EC datalake 未收录此组合； <i>—</i> = 拟变更值与现行值相同",
       "m_note_intro": "该物质在 EC datalake 中共有 {n_regs} 个法规版本（现行 / 拟变更 / 历史），覆盖 {n_crops} 项作物的 MRL。下方矩阵按「法规 × 作物」展示；单元格格为 MRL(mg/kg)，\"*\"表示以检测限 LOQ 为准。拟变更 MRL 请以 EUR-Lex 与 EFSA Journal 复核。",
       "历史": "历史",
       "sec_divider": "下方为变动追踪",
@@ -2283,6 +2289,10 @@ window.RB_CONFIG = {
       "m_voted": "Voted",
       "m_applied": "Applied",
       "m_no_data": "No MRL matrix data for this substance.",
+      "m_noinfo": "No info",
+      "m_noinfo_tip": "No MRL data for this crop under this regulation (not in EC datalake)",
+      "m_unchanged_tip": "Proposed value equals current value (no change)",
+      "m_legend": "  ·  <i>No info</i> = not in EC datalake; <i>—</i> = proposed equals current",
       "m_note_intro": "EC datalake contains {n_regs} regulation versions (current / proposed / historical), covering MRL for {n_crops} crops. The matrix below shows regulation × crop; cells are MRL (mg/kg); \"*\" means LOQ is the limit. For proposed MRLs, cross-check with EUR-Lex and EFSA Journal.",
       "sec_divider": "Change Tracking Below",
       "sec_divider_n": "Substances with a change signal in the last 6 months (change signal type, change date, MRL change date, approval expiry).",
@@ -4452,8 +4462,8 @@ window.RB_CONFIG = {
     if (cur && document.getElementById('mrl-modal').style.display === 'flex') {
           var _sub = cur.sub;
           var _nregs2 = (_sub.cols||[]).length, _ncrops2 = (_sub.rows||[]).length;
-          document.getElementById('mrl-modal-note').textContent =
-            T('m_note_intro').replace('{n_regs}', _nregs2).replace('{n_crops}', _ncrops2);
+          document.getElementById('mrl-modal-note').innerHTML =
+            T('m_note_intro').replace('{n_regs}', _nregs2).replace('{n_crops}', _ncrops2) + T('m_legend');
           renderColFilters(); renderMatrix();
         }
   };
@@ -4485,7 +4495,7 @@ window.RB_CONFIG = {
     document.getElementById('mrl-modal-meta').innerHTML = badge + (meta.length? ' &nbsp; '+meta.join(' &nbsp;|&nbsp; '):'') + (efsaHtml? ' &nbsp;|&nbsp; '+efsaHtml : '');
     var _nregs = (sub.cols||[]).length, _ncrops = (sub.rows||[]).length;
     var _noteTxt = T('m_note_intro').replace('{n_regs}', _nregs).replace('{n_crops}', _ncrops);
-    document.getElementById('mrl-modal-note').textContent = _noteTxt;
+    document.getElementById('mrl-modal-note').innerHTML = _noteTxt + T('m_legend');
     applyMrlI18n(); renderColFilters(); renderMatrix();
     document.getElementById('mrl-modal').style.display='flex';
     document.body.style.overflow='hidden';
@@ -4578,14 +4588,28 @@ window.RB_CONFIG = {
       var chg=isRowChanged(row);
       tbody+='<tr class="'+(chg?'mrl-changed':'')+'"><td class="mrl-crop" style="'+firstColStyle+'"><div class="mrl-crop-inner">'+esc(row.code)+' '+esc(row.name)+'</div></td>';
       visCols.forEach(function(col){
-        var v=cur.cells[row.code+'|'+col.reg]; if(v===undefined||v==='') v='—';
-        /* 拟变更列: 若 cell 值与同行 现行 cell 值相同,标 "—" 表示无实际差异
-           ⚠️ 注入器写入 \"0.2\" (string),原矩阵写入 0.2 (number),需归一化为字符串再比 */
-        if(col.status==='Not yet applicable' && appCol){
-          var av = cur.cells[row.code+'|'+appCol.reg];
-          if(isRealVal(v) && isRealVal(av) && String(v)===String(av)) v='—';
+        var key=row.code+'|'+col.reg;
+        var raw=cur.cells[key];
+        var v, cls='mrl-cell', tip='';
+        if(raw === undefined){
+          /* 真正无信息：cells 字典里根本没这个 key (区别于"提议=现行"的占位 "—") */
+          v = T('m_noinfo');
+          cls += ' mrl-noinfo';
+          tip = T('m_noinfo_tip');
+        } else {
+          v = raw;
+          /* 拟变更列: 若 cell 值与同行 现行 cell 值相同,标 "—" 表示无实际差异
+             ⚠️ 注入器写入 \"0.2\" (string),原矩阵写入 0.2 (number),需归一化为字符串再比 */
+          if(col.status==='Not yet applicable' && appCol){
+            var av = cur.cells[row.code+'|'+appCol.reg];
+            if(isRealVal(v) && isRealVal(av) && String(v)===String(av)){
+              v='—';
+              cls += ' mrl-empty-cell mrl-unchanged';
+              tip = T('m_unchanged_tip');
+            }
+          }
         }
-        tbody+='<td class="mrl-cell'+(v==='—'?' mrl-empty-cell':'')+'">'+esc(v)+'</td>';
+        tbody+='<td class="'+cls+'"'+(tip?' title="'+esc(tip)+'"':'')+'>'+esc(v)+'</td>';
       });
       tbody+='</tr>';
     });
