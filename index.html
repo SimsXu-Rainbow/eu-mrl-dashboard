@@ -6593,15 +6593,15 @@ window.RB_CONFIG = {
   var mrlOpenBtn = document.getElementById('mrl-open-btn');
   if (mrlOpenBtn) mrlOpenBtn.onclick = function () { if (AIS.length) openMrl(AIS[0].id); };
 
-  // 列表行（活性物质清单 / 变动追踪）点击下钻 - 直接打开对应物质的 MRL 矩阵
+  // 列表行（活性物质清单 / 变动追踪）点击下钻 - 仅「活性物质」(name) 列可打开对应物质的 MRL 矩阵弹窗
   var main=document.getElementById('rbv-main');
   if(main){ main.addEventListener('click', function(e){
-    var row=e.target.closest? e.target.closest('.rbv-row'):null; if(!row) return;
-    /* 取行内第一个 .rbv-td（主列 = 活性物质名）的文本 */
-    var first=row.querySelector('.rbv-td[data-col="name"]') || row.querySelector('.rbv-td');
-    var cellText=first? (first.textContent||'').trim():''; if(!cellText) return;
-    /* 行内可能附了 EFSA 链接(由 EFSA 富化包装追加),导致 cellText = "<name>EFSA <qid> <status>"(注意无空格分隔)。
-       先做精确匹配,再做"最长前缀"兜底匹配,避免被 EFSA 后缀污染。 */
+    /* 仅当点击落在「活性物质」列（data-col="name"）的单元格时才触发；其余列点击不再打开弹窗。 */
+    var td=e.target.closest? e.target.closest('.rbv-td'):null;
+    if(!td || td.getAttribute('data-col') !== 'name') return;
+    var row=td.closest('.rbv-row'); if(!row) return;
+    var cellText=(td.textContent||'').trim(); if(!cellText) return;
+    /* name 列可能附带行注标记(span.rbv-mk,纯数字后缀),用最长前缀兜底匹配去掉 */
     var a=aisByName[cellText];
     if(!a){ var bestLen=0; for(var k in aisByName){ if(k && cellText.indexOf(k)===0 && k.length>bestLen){ a=aisByName[k]; bestLen=k.length; } } }
     if(a) openMrl(a.id);
