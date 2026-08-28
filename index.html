@@ -6256,16 +6256,39 @@ window.RB_CONFIG = {
 (function(){
   try {
     /* ▼ 2026-08-28 放宽: 信号日 cut-off 由「滚动近 6 月」改为「固定 2026-01-01 起」。
-       使 2026 上半年生效的现行法规(applied 01/01-08/28)仍可触发「MRL修订」标签。
-       计算用 fixed Date('2026-01-01Z'); toISOString 在 UTC 截 YYYY-MM-DD = 2026-01-01。 */
+       王总 2026-08-28 明确口径——
+       拟变更 = 有 EFSA 提议的新 MRL (Not yet applicable 法规列, 即 PLAN 草案)
+       MRL修订 = MRL 已经实行 (Applicable 列 applied ≥ 2026-01-01, 不再要求与历史列有差异) */
     var now = new Date();
     var cutoff = new Date('2026-01-01T00:00:00Z');
     var cutoffISO = cutoff.toISOString().slice(0,10);
     var DASH = '\u2014';
     var M = window.MRL_MATRIX || {};
 
+    /* ▼ 2026-08-28 修复: 物质名 → 矩阵 key。
+       RB_CONFIG.rows[].name 含空格 ("Copper Hydroxide"),
+       MRL_MATRIX 的 key 是 slug ("copperhydroxide", 无空格)。
+       原 .toLowerCase() 简单转换在空格处断裂, 现改为：
+       1) 大小写 + 去所有空白 + 去连字符  →  严格匹配
+       2) 直接大小写 + 去所有空白         →  兼容连字符大小写差异
+       3) 直接小写                          →  兼容无空格匹配
+       依次尝试, 找到即返回。 */
+    function keyOf(name){
+      var s = String(name==null?'':name);
+      if(M[s.toLowerCase()]) return s.toLowerCase();
+      var nopunct = s.toLowerCase().replace(/[\s\-_]+/g,'');
+      if(M[nopunct]) return nopunct;
+      var nospace = s.toLowerCase().replace(/\s+/g,'');
+      if(M[nospace]) return nospace;
+      return s.toLowerCase(); /* 兜底原样, 之后 lookup 会自然返回 undefined */
+    }
+    function getM(name){
+      var k = keyOf(name);
+      return M[k];
+    }
+
     function latestMatrixDate(name){
-      var mrl = M[String(name||'').toLowerCase()];
+      var mrl = getM(name);
       if(!mrl || !Array.isArray(mrl.cols) || !mrl.cols.length) return null;
       var max = null;
       mrl.cols.forEach(function(c){
@@ -6283,10 +6306,11 @@ window.RB_CONFIG = {
       return max;
     }
 
-    /* 比较拟变更 vs 现行的实际 MRL 值; 值全相等则不标"变更"。
-   残留物定义差异(只看空白/标点)若不伴随值差异,也不算"变更"——以用户视觉感知的"MRL 是否变化"为唯一准绳。 */
+    /* 拟变更信号: matrix 里有 "Not yet applicable" 法规列(EFSA PLAN 草案),
+       且与现行法规对比存在差异(含残留定义差异)。
+       例: Deltamethrin PLAN/2025/3053 改 48 作物。 */
     function hasRealProposedChange(name){
-      var mrl = M[String(name||'').toLowerCase()];
+      var mrl = getM(name);
       if(!mrl || !Array.isArray(mrl.cols)) return false;
       var prop = null, app = null;
       for(var i=0;i<mrl.cols.length;i++){
@@ -6308,36 +6332,25 @@ window.RB_CONFIG = {
       return false;
     }
 
-    /* MRL修订信号: 现行法规 applied ≥ cutoff(2026-01-01) 且 现行 vs 历史 任一作物 MRL 值不同。
-       与"拟变更"(草案 vs 现行)独立, 二者可并存。
-       例: Deltamethrin 现行 Reg 2026/876 在 2026-05-12 生效, 把 Cherry 0.1→0.15,
-       故同时有"拟变更"(PLAN/2025/3053 改 48 作物)与"MRL修订"(现行近期已修订)。 */
+    /* MRL修订信号: 现行法规 (Applicable 列) applied ≥ cutoff(2026-01-01)。
+       不再要求与历史列存在差异——王总 2026-08-28 决定:
+       "如果MRL已经实行, 标记为MRL修订"——只要 2026 年起有现行法规生效即算。
+       例: Copper Hydroxide 现行 Reg 2026/840 (applied 05/05/2026) → 标记 MRL修订;
+           Potassium Phosphonates Reg 2026/876 (applied 12/05/2026) → 同。 */
     function hasRecentMrlRevision(name){
-      var mrl = M[String(name||'').toLowerCase()];
+      var mrl = getM(name);
       if(!mrl || !Array.isArray(mrl.cols)) return false;
-      var app = null, hist = null;
+      var app = null;
       for(var i=0;i<mrl.cols.length;i++){
-        var c = mrl.cols[i];
-        if(c.status==='Applicable' && !app) app = c;
-        else if(c.status==='No longer applicable' && !hist) hist = c;
+        if(mrl.cols[i].status==='Applicable'){ app = mrl.cols[i]; break; }
       }
-      if(!app || !hist) return false;
+      if(!app) return false;
       var applied = app.applied;
       if(!applied) return false;
-      var m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(applied);
-      if(!m) return false;
-      var dt = new Date(m[3]+'-'+m[2]+'-'+m[1]);
-      if(isNaN(dt.getTime()) || dt < cutoff) return false;
-      var cells = mrl.cells || {}, rows = mrl.rows || [];
-      for(var j=0;j<rows.length;j++){
-        var code = rows[j].code;
-        var av = cells[code+'|'+app.reg];
-        var hv = cells[code+'|'+hist.reg];
-        if(av!==undefined && av!==null && av!=='' && av!=='—'
-           && hv!==undefined && hv!==null && hv!=='' && hv!=='—'
-           && String(av) !== String(hv)) return true;
-      }
-      return false;
+      var m2 = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(applied);
+      if(!m2) return false;
+      var dt = new Date(m2[3]+'-'+m2[2]+'-'+m2[1]);
+      return !isNaN(dt.getTime()) && dt >= cutoff;
     }
 
     /* 过滤统一后的 substances 单表: 用双信号(拟变更 + MRL修订)重算每行的变更标签 */
