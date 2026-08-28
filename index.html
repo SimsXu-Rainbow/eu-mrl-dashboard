@@ -2332,7 +2332,7 @@ window.RB_CONFIG = {
       "kpi_approved_n": "status = 已批准",
       "kpi_proposed": "拟变更 MRL",
       "kpi_proposed_n": "有草案待生效",
-      "kpi_recent": "近 6 月变更",
+      "kpi_recent": "2026 年起变更",
       "kpi_recent_n": "2026-02-05 起",
       "sec_status": "批准状态分布",
       "sec_status_n": "按活性物质计数",
@@ -6308,57 +6308,56 @@ window.RB_CONFIG = {
       return max;
     }
 
-    /* 拟变更信号: matrix 里有 "Not yet applicable" 法规列(EFSA PLAN 草案),
-       且与现行法规对比存在差异(含残留定义差异)。
-       例: Deltamethrin PLAN/2025/3053 改 48 作物。 */
-    /* 拟变更信号: matrix 里有 "Not yet applicable" 法规列(EFSA PLAN 草案)。
-       王总 2026-08-28 口径: 仅检查存在,不要求与现行值不同(王总原话:
-       "如果有EFSA提议的新MRL, 标记为拟变更")。
-       例如 Terbuthylazine Reg 2026/1314 与现行 Reg 2021/618 值同为 0.02*,
-       但因新法规存在仍应标 拟变更。 */
-    function hasRealProposedChange(name){
+    /* 拟变更 / MRL修订 标记 — 王总 2026-08-28 晚修订口径 v2:
+       - 拟变更 = 存在 Not yet applicable 法规列 (有草案就标, 不受 voted 日期窗口约束)
+                  变更信号发布日 = 该草案 voted (EFSA 投票公告当天)
+       - MRL修订 = 存在 Applicable 列且 applied ≥ cutoff(2026-01-01, 固定)
+                  变更信号发布日 = 该现行法规 applied (MRL 正式生效当天)
+       - 两者同时存在 → 仅标「拟变更」, 日期取 voted (拟变更优先)
+       - 都没有 → 「—」, 日期「—」
+       窗口下限固定 2026-01-01, 2025 全年不纳入, 不随日期滚动。 */
+    function parseDMY(s){
+      var m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s||'');
+      if(!m) return null;
+      var dt = new Date(m[3]+'-'+m[2]+'-'+m[1]);
+      return isNaN(dt.getTime()) ? null : dt;
+    }
+    function fmtDMY(dt){
+      if(!dt) return DASH;
+      var y=dt.getFullYear(), m=('0'+(dt.getMonth()+1)).slice(-2), d=('0'+dt.getDate()).slice(-2);
+      return y+'-'+m+'-'+d;
+    }
+    /* 计算某物质的变更标签 + 变更信号发布日(YYYY-MM-DD) */
+    function computeChange(name){
       var mrl = getM(name);
-      if(!mrl || !Array.isArray(mrl.cols)) return false;
-      for(var i=0;i<mrl.cols.length;i++){
-        if(mrl.cols[i].status === 'Not yet applicable') return true;
+      var hasProposed = false, proposedDate = null;   /* 拟变更: 取最大 voted */
+      var revisedDate  = null;                         /* MRL修订: 取最大 applied(≥cutoff) */
+      if(mrl && Array.isArray(mrl.cols)){
+        mrl.cols.forEach(function(c){
+          if(c.status === 'Not yet applicable'){
+            hasProposed = true;
+            var v = parseDMY(c.voted);
+            if(v && (proposedDate===null || v > proposedDate)) proposedDate = v;
+          } else if(c.status === 'Applicable'){
+            var a = parseDMY(c.applied);
+            if(a && a >= cutoff && (revisedDate===null || a > revisedDate)) revisedDate = a;
+          }
+        });
       }
-      return false;
+      if(hasProposed) return { label:'拟变更', date: fmtDMY(proposedDate) };
+      if(revisedDate)  return { label:'MRL修订', date: fmtDMY(revisedDate) };
+      return { label: DASH, date: DASH };
     }
 
-    /* MRL修订信号: 现行法规 (Applicable 列) applied ≥ cutoff(2026-01-01)。
-       不再要求与历史列存在差异——王总 2026-08-28 决定:
-       "如果MRL已经实行, 标记为MRL修订"——只要 2026 年起有现行法规生效即算。
-       例: Copper Hydroxide 现行 Reg 2026/840 (applied 05/05/2026) → 标记 MRL修订;
-           Potassium Phosphonates Reg 2026/876 (applied 12/05/2026) → 同。 */
-    function hasRecentMrlRevision(name){
-      var mrl = getM(name);
-      if(!mrl || !Array.isArray(mrl.cols)) return false;
-      var app = null;
-      for(var i=0;i<mrl.cols.length;i++){
-        if(mrl.cols[i].status==='Applicable'){ app = mrl.cols[i]; break; }
-      }
-      if(!app) return false;
-      var applied = app.applied;
-      if(!applied) return false;
-      var m2 = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(applied);
-      if(!m2) return false;
-      var dt = new Date(m2[3]+'-'+m2[2]+'-'+m2[1]);
-      return !isNaN(dt.getTime()) && dt >= cutoff;
-    }
-
-    /* 过滤统一后的 substances 单表: 用双信号(拟变更 + MRL修订)重算每行的变更标签 */
+    /* 过滤 substances 表: 重算每行的变更标签(change) 与 变更信号发布日(changeDate) */
     (window.RB_CONFIG.views||[]).forEach(function(view){
       (view.blocks||[]).forEach(function(b){
         if(b.type==='table' && b.id==='substances' && Array.isArray(b.rows)){
           b.rows.forEach(function(r){
             if(!r.name) return;
-            var proposed = hasRealProposedChange(r.name);
-            var revised  = hasRecentMrlRevision(r.name);
-            var lbl = DASH;
-            if(proposed && revised) lbl = '拟变更 · MRL修订';
-            else if(proposed) lbl = '拟变更';
-            else if(revised) lbl = 'MRL修订';
-            r.change = lbl;
+            var ch = computeChange(r.name);
+            r.change = ch.label;
+            r.changeDate = ch.date;
           });
         }
       });
@@ -6389,11 +6388,11 @@ window.RB_CONFIG = {
     });
     if(window.RB_CONFIG.i18n && window.RB_CONFIG.i18n.zh){
       window.RB_CONFIG.i18n.zh.kpi_recent_n = '\u53d8\u66f4\u65e5 \u2265 ' + cutoffISO;
-      window.RB_CONFIG.i18n.zh.sec_changes_n = '\u81ea ' + cutoffISO + ' \u8d77\u6709\u53d8\u66f4\u4fe1\u53f7\u7684\u7269\u8d28\u5171 ' + recentCount + ' \u4e2a\uff1b\u62df\u53d8\u66f4 = \u8349\u6848\u5f85\u751f\u6548\uff0cMRL\u4fee\u8ba2 = \u73b0\u884c\u6cd5\u89c4\u8fd1\u671f\u5df2\u751f\u6548\u3002\u53d8\u66f4\u65e5\u65e9\u4e8e ' + cutoffISO + ' \u7684\u4e0d\u518d\u6807\u6ce8\u3002';
+      window.RB_CONFIG.i18n.zh.sec_changes_n = '\u81ea ' + cutoffISO + ' \u8d77\u6709\u53d8\u66f4\u4fe1\u53f7\u7684\u7269\u8d28\u5171 ' + recentCount + ' \u4e2a\uff1b\u62df\u53d8\u66f4 = \u8349\u6848\u5f85\u751f\u6548\uff08\u65e5\u671f\u53d6 EFSA \u6295\u7968\u65e5\uff09\uff0cMRL\u4fee\u8ba2 = \u73b0\u884c\u6cd5\u89c4\u8fd1\u671f\u5df2\u751f\u6548\uff08\u65e5\u671f\u53d6\u751f\u6548\u65e5\uff09\u3002\u62df\u53d8\u66f4\u4e0e MRL\u4fee\u8ba2\u540c\u65f6\u5b58\u5728\u65f6\u4ec5\u663e\u793a\u300c\u62df\u53d8\u66f4\u300d\u3002\u53d8\u66f4\u65e5\u65e9\u4e8e ' + cutoffISO + ' \u7684\u4e0d\u518d\u6807\u6ce8\u3002';
     }
     if(window.RB_CONFIG.i18n && window.RB_CONFIG.i18n.en){
       window.RB_CONFIG.i18n.en.kpi_recent_n = 'Change date ≥ ' + cutoffISO;
-      window.RB_CONFIG.i18n.en.sec_changes_n = 'Substances with a change signal since ' + cutoffISO + ': ' + recentCount + ' in total. Proposed = draft pending; MRL revised = current regulation recently applied. Change dates before ' + cutoffISO + ' are excluded.';
+      window.RB_CONFIG.i18n.en.sec_changes_n = 'Substances with a change signal since ' + cutoffISO + ': ' + recentCount + ' in total. Proposed = draft pending (date = EFSA vote day); MRL revised = current regulation recently applied (date = effective day). Where proposed and revised coincide, only Proposed is shown. Change dates before ' + cutoffISO + ' are excluded.';
     }
   } catch(e) { if(window.console) console.error('matrix-date filter failed:', e); }
 })();
