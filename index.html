@@ -2095,6 +2095,18 @@ function renderBlock(container, blk) {
         if (blk.note) container.appendChild(el('div', 'rbv-sectionnote', TL(blk.note)));
         break;
       }
+      case 'svg': {
+        var tplEl = blk.tpl ? document.getElementById(blk.tpl) : null;
+        var svgHtml = tplEl ? (tplEl.innerHTML || tplEl.textContent || '') : (blk.html || '');
+        if (!svgHtml) { container.appendChild(el('div', 'rbv-missing', T('_missing_block'))); break; }
+        var fw = el('div', 'rb-procflow');
+        fw.style.maxWidth = '860px';
+        fw.style.margin = '0 auto';
+        fw.style.padding = '8px 0 4px';
+        fw.innerHTML = svgHtml;
+        container.appendChild(fw);
+        break;
+      }
       default:
         container.appendChild(el('div', 'rbv-missing', '未知组件类型: ' + blk.type));
     }
@@ -6225,6 +6237,38 @@ window.RB_CONFIG = {
       "nav": "nav_summary",
       "blocks": []
     }
+    ,
+    {
+      "id": "process",
+      "nav": { "zh": "MRL 流程", "en": "MRL Process" },
+      "blocks": [
+        {
+          "type": "lead",
+          "eyebrow": { "zh": "MRL 生命周期", "en": "MRL lifecycle" },
+          "text": { "zh": "欧盟 MRL 从企业申请到正式适用的标准链路，以及看板数据来源对应的政府官网。拟变更信号日 = PAFF 投票日(voted)，MRL 修订信号日 = 法规适用日(applied)。", "en": "The standard EU MRL pipeline from industry application to applicability, plus the official websites behind the dashboard data sources. Proposed-change signal date = PAFF vote day (voted); MRL-revision signal date = regulation application day (applied)." }
+        },
+        {
+          "type": "svg",
+          "tpl": "procFlowSvg"
+        },
+        {
+          "type": "section",
+          "title": { "zh": "数据来源对照", "en": "Data source mapping" },
+          "note": { "zh": "看板「数据来源」列与流程各步骤的对应关系：拟变更指向 Comitology Register（voted），MRL 修订指向 EUR-Lex（applied）。", "en": "How the dashboard data-source links map to pipeline steps: proposed change points to the Comitology Register (voted), MRL revision points to EUR-Lex (applied)." }
+        },
+        {
+          "type": "sources",
+          "title": { "zh": "政府官网来源", "en": "Official government sources" },
+          "items": [
+            { "label": { "zh": "EC datalake · 残留 MRL 数据湖", "en": "EC datalake · MRL residue data lake" }, "level": "high", "note": { "zh": "MRL_MATRIX 数据底座（voted/applied/status 全部来自此）", "en": "Data foundation of MRL_MATRIX (voted/applied/status all from here)" } },
+            { "label": { "zh": "EU Pesticides Database · 活性物质模块", "en": "EU Pesticides Database · active substances" }, "level": "mid", "note": { "zh": "活性物质批准到期/依据（AIS 数组来源，平行维度）", "en": "Active-substance approval expiry/basis (AIS source, parallel dimension)" } },
+            { "label": { "zh": "EFSA Journal · 开放问答页", "en": "EFSA Journal · open Q&A" }, "level": "high", "note": { "zh": "第 3 步 EFSA 风险评估（变更早期信号）", "en": "Step 3 EFSA risk assessment (early change signal)" } },
+            { "label": { "zh": "PAFF 委员会 · 植物保护用品分委会", "en": "PAFF Committee · Phytopharmaceuticals section" }, "level": "high", "note": { "zh": "第 5 步 PAFF 投票（拟变更信号日 = voted）", "en": "Step 5 PAFF vote (proposed-change signal date = voted)" } },
+            { "label": { "zh": "EUR-Lex · 欧盟法律门户", "en": "EUR-Lex · EU law portal" }, "level": "high", "note": { "zh": "第 6/7 步 通过+OJ公布+适用（MRL修订信号日 = applied）", "en": "Steps 6/7 adoption + OJ publication + applicability (MRL-revision signal date = applied)" } }
+          ]
+        }
+      ]
+    }
   ]
 };</script>
 
@@ -6904,6 +6948,83 @@ window.RB_CONFIG = {
 })();
 </script>
 
+<script type="text/html" id="procFlowSvg">
+<svg viewBox="0 0 680 612" width="100%" role="img" xmlns="http://www.w3.org/2000/svg">
+  <title>EU MRL revision to application flow</title>
+  <desc>Seven-step EU MRL pipeline from application to applicability, with official websites annotated.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="#5F5E5A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <text x="340" y="24" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="500" fill="#2C2C2A">欧盟 MRL：从修订到生效的流程</text>
+
+  <g>
+    <rect x="60" y="56" width="370" height="56" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+    <text x="245" y="78" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="500" fill="#0C447C">1 申请 / 触发</text>
+    <text x="245" y="96" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#185FA5">行业提交 GAP 或 EFSA Art.12 复查</text>
+  </g>
+
+  <g>
+    <rect x="60" y="136" width="370" height="56" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+    <text x="245" y="158" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="500" fill="#0C447C">2 成员国评估 (RMS)</text>
+    <text x="245" y="176" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#185FA5">起草评估报告 DAR</text>
+  </g>
+
+  <g>
+    <rect x="60" y="216" width="370" height="56" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+    <text x="245" y="238" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="500" fill="#0C447C">3 EFSA 风险评估</text>
+    <text x="245" y="256" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#185FA5">合理意见 + 公众咨询</text>
+    <rect x="448" y="220" width="200" height="48" rx="8" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+    <text x="548" y="238" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="500" fill="#633806">EFSA Journal</text>
+    <text x="548" y="256" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#854F0B">open.efsa.europa.eu</text>
+    <line x1="430" y1="244" x2="448" y2="244" stroke="#B4B2A9" stroke-width="0.5" stroke-dasharray="3 3"/>
+  </g>
+
+  <g>
+    <rect x="60" y="296" width="370" height="56" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+    <text x="245" y="318" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="500" fill="#0C447C">4 委员会起草修订法规</text>
+    <text x="245" y="336" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#185FA5">修订 Annexes II/III/V</text>
+  </g>
+
+  <g>
+    <rect x="60" y="376" width="370" height="56" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+    <text x="245" y="398" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="500" fill="#0C447C">5 PAFF 委员会投票</text>
+    <text x="245" y="416" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#185FA5">常委会 comitology 表决</text>
+    <rect x="448" y="380" width="200" height="48" rx="8" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+    <text x="548" y="398" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="500" fill="#633806">PAFF 委员会</text>
+    <text x="548" y="416" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#854F0B">植物保护用品分委会</text>
+    <line x1="430" y1="404" x2="448" y2="404" stroke="#B4B2A9" stroke-width="0.5" stroke-dasharray="3 3"/>
+  </g>
+
+  <g>
+    <rect x="60" y="456" width="370" height="56" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+    <text x="245" y="478" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="500" fill="#0C447C">6 委员会通过 + OJEU 公布</text>
+    <text x="245" y="496" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#185FA5">Done at Brussels + 官方公报</text>
+    <rect x="448" y="460" width="200" height="48" rx="8" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+    <text x="548" y="478" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="500" fill="#633806">EUR-Lex</text>
+    <text x="548" y="496" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#854F0B">eur-lex.europa.eu</text>
+    <line x1="430" y1="484" x2="448" y2="484" stroke="#B4B2A9" stroke-width="0.5" stroke-dasharray="3 3"/>
+  </g>
+
+  <g>
+    <rect x="60" y="536" width="370" height="56" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+    <text x="245" y="558" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="500" fill="#0C447C">7 生效 / 适用</text>
+    <text x="245" y="576" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#185FA5">application 日起强制执行</text>
+    <line x1="430" y1="564" x2="448" y2="564" stroke="#B4B2A9" stroke-width="0.5" stroke-dasharray="3 3"/>
+    <rect x="448" y="544" width="200" height="40" rx="8" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+    <text x="548" y="564" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="500" fill="#633806">适用日亦在 EUR-Lex (ELI)</text>
+  </g>
+
+  <line x1="245" y1="112" x2="245" y2="136" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="245" y1="192" x2="245" y2="216" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="245" y1="272" x2="245" y2="296" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="245" y1="352" x2="245" y2="376" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="245" y1="432" x2="245" y2="456" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="245" y1="512" x2="245" y2="536" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#arrow)"/>
+</svg>
+</script>
 </body>
 </html>
 
