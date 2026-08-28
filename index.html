@@ -1748,16 +1748,28 @@ function renderTableBody(tid) {
       } else if (c.type === 'applied') {
         /* 预计生效日期列：YAML row 注入的 appliedDate（YYYY-MM-DD 或 —）。
            配套行字段：appliedUrl (EUR-Lex ELI)、appliedReg (Reg (EU) yyyy/nnn) ——
-           仅在数据来源列复用，这里只渲染日期与状态标识。 */
+           仅在数据来源列复用，这里只渲染日期与状态标识。
+
+           ▼ 2026-08-28 修正: 预计生效日期仅显示 "尚未生效" 的决定。
+             过去日期 (≤ 今天) 已落地的法规属「现行」,这里统一显示 —,
+             不再挂在「预计」列,避免与「现行 MRL 生效日」列冗余/误读。
+             例: Metconazole appliedDate=2016-11-24 → 显示 — (2026-08-28)。 */
         var _ad = v;
-        if (_ad && _ad !== '\u2014' && r.appliedUrl) {
+        var _adFuture = false;
+        if (_ad && _ad !== '\u2014' && /^\d{4}-\d{2}-\d{2}$/.test(_ad)) {
+          var _now = new Date();
+          var _cur = _now.toISOString().slice(0,10); // YYYY-MM-DD (UTC)
+          /* 日期字符串按字典序即可比较 YYYY-MM-DD。>= 今天 视为尚未生效 */
+          if (_ad >= _cur) _adFuture = true;
+        }
+        if (_adFuture && r.appliedUrl) {
           var _al = el('a', 'rbv-eurlex');
           _al.href = r.appliedUrl;
           _al.target = '_blank';
           _al.rel = 'noopener';
           _al.textContent = _ad;
           td.appendChild(_al);
-        } else if (_ad && _ad !== '\u2014') {
+        } else if (_adFuture) {
           td.textContent = _ad;
         } else {
           td.textContent = '\u2014';
@@ -2343,8 +2355,8 @@ window.RB_CONFIG = {
       "th_c_aeed": "预计生效日",
       "th_c_mcd": "现行 MRL 生效日",
       "th_c_expr": "批准到期",
-      "note_changes": "变更信号发布日 = 变更信号在官方渠道的发布日期；现行 MRL 生效日 = 最近一次 MRL 法规生效日期。",
-      "col_aeed_n": "预计生效日 = 待生效法规的 applied 日；仅当有 Not yet applicable 法规时填入，点击跳转 EUR-Lex 法规正文。",
+"note_changes": "变更信号发布日 = 变更信号在官方渠道的发布日期；现行 MRL 生效日 = 最近一次 MRL 法规生效日期；预计生效日 = 尚未生效的法规 applied 日 (≥ 当天)。",
+"col_aeed_n": "预计生效日 = 尚未生效法规的 applied 日 (≥ 当天)。已生效 (现行) 的法规仅在「现行 MRL 生效日」列体现,本列统一显示 —。点击日期跳转 EUR-Lex 法规正文。",
       "st_approved": "已批准",
       "st_notapproved": "未批准",
       "st_norecord": "无批准记录",
@@ -2528,7 +2540,7 @@ window.RB_CONFIG = {
       "th_c_mcd": "Current MRL effective date",
       "th_c_expr": "Approval expiry",
       "note_changes": "Change signal release date = the date the change signal was published; Current MRL effective date = date of the most recent MRL regulation becoming effective.",
-      "col_aeed_n": "Expected effective = `applied` date of the pending regulation; populated only when a Not yet applicable regulation exists. Click to jump to the EUR-Lex official text.",
+      "col_aeed_n": "Expected effective = `applied` date of the pending regulation (≥ today). Already-effective (current) regulations are listed only in the \"Current MRL effective date\" column; this column shows —. Click a date to jump to the EUR-Lex official text.",
       "st_approved": "Approved",
       "st_notapproved": "Not approved",
       "st_norecord": "No approval record",
