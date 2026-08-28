@@ -1775,10 +1775,12 @@ function renderTableBody(tid) {
           td.textContent = '\u2014';
         }
       } else if (c.type === 'sources') {
-        /* 数据来源列：渲染该物质「变更信号发布日」对应的来源链接。
-           由 _inject_signal_source.py 注入 signalUrl / signalReg —— 通常是 EUR-Lex
-           ELI 直链（`voted` 日期与 `changeDate` 最近的那条 MRL 法规），但当源是
-           PLAN 草案时，会回退到 efsa_url + efsa_label（EFSA Open Questions）。
+        /* 数据来源列：渲染该物质「变更信号发布日(voted)」对应的来源链接。
+           按 Z 口径：signalUrl 指向 Standing Committee 于 changeDate 当日投票通过的
+           那一份草案法规（comitology 登记处 D-number 文档），而非已通过的法规本身
+           （已通过法规留在 appliedUrl，作为「预计生效日期」的出处）。
+           例：Reg (EU) 2026/1314 的 voted 草案 = comitology D108180/05（2026-02-06 投票）。
+           当源是 EFSA Open Questions 时，会回退到 efsa_url + efsa_label。
            若依然没有，则退回 appliedUrl。 */
         var _srcUrl = r.signalUrl || r.appliedUrl;
         var _srcReg = r.signalReg || r.appliedReg;
@@ -4011,7 +4013,7 @@ window.RB_CONFIG = {
     "appliedReg": "Regulation (EU) 2026/1314",
     "appliedStatus": "Not yet applicable",
     "signalDate": "2026-02-11",
-    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2026/1314/oj/eng",
+    "signalUrl": "https://ec.europa.eu/transparency/comitology-register/screen/documents/document/D-108180/05",
     "signalReg": "Reg (EU) 2026/1314",
     "signalStatus": "Not yet applicable"
   },
@@ -5181,7 +5183,7 @@ window.RB_CONFIG = {
     "appliedReg": "Regulation (EU) 2026/1314",
     "appliedStatus": "Not yet applicable",
     "signalDate": "2026-02-06",
-    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2026/1314/oj/eng",
+    "signalUrl": "https://ec.europa.eu/transparency/comitology-register/screen/documents/document/D-108180/05",
     "signalReg": "Regulation (EU) 2026/1314",
     "signalStatus": "Not yet applicable"
   },
@@ -5343,7 +5345,7 @@ window.RB_CONFIG = {
     "appliedReg": "Regulation (EU) 2026/1314",
     "appliedStatus": "Not yet applicable",
     "signalDate": "2026-02-06",
-    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2026/1314/oj/eng",
+    "signalUrl": "https://ec.europa.eu/transparency/comitology-register/screen/documents/document/D-108180/05",
     "signalReg": "Reg (EU) 2026/1314",
     "signalStatus": "Not yet applicable"
   },
@@ -5433,7 +5435,7 @@ window.RB_CONFIG = {
     "appliedReg": "Regulation (EU) 2026/1314",
     "appliedStatus": "Not yet applicable",
     "signalDate": "2026-02-06",
-    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2026/1314/oj/eng",
+    "signalUrl": "https://ec.europa.eu/transparency/comitology-register/screen/documents/document/D-108180/05",
     "signalReg": "Reg (EU) 2026/1314",
     "signalStatus": "Not yet applicable"
   },
