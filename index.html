@@ -1763,14 +1763,26 @@ function renderTableBody(tid) {
           td.textContent = '\u2014';
         }
       } else if (c.type === 'sources') {
-        /* 数据来源列：渲染 EUR-Lex ELI 链接（由 row.appliedUrl / appliedReg 提供）。
-           EUR-Lex 链接直接定位到具体 MRL 法规正文（oj/eng）。 */
-        if (r.appliedUrl) {
-          var _lk = el('a', 'rbv-eurlex');
-          _lk.href = r.appliedUrl;
+        /* 数据来源列：渲染该物质「变更信号发布日」对应的来源链接。
+           由 _inject_signal_source.py 注入 signalUrl / signalReg —— 通常是 EUR-Lex
+           ELI 直链（`voted` 日期与 `changeDate` 最近的那条 MRL 法规），但当源是
+           PLAN 草案时，会回退到 efsa_url + efsa_label（EFSA Open Questions）。
+           若依然没有，则退回 appliedUrl。 */
+        var _srcUrl = r.signalUrl || r.appliedUrl;
+        var _srcReg = r.signalReg || r.appliedReg;
+        if (_srcUrl) {
+          var _isEfsa = /open\.efsa\.europa\.eu/.test(_srcUrl);
+          var _lk = el('a', _isEfsa ? 'mrl-row-efsa' : 'rbv-eurlex');
+          _lk.href = _srcUrl;
           _lk.target = '_blank';
           _lk.rel = 'noopener';
-          _lk.textContent = r.appliedReg || '\u2026';
+          _lk.textContent = _srcReg || (_isEfsa ? 'EFSA \u2197' : '\u2026');
+          if (_isEfsa && r.signalStatus) {
+            var _st = document.createElement('span');
+            _st.className = 'mrl-row-efsa-st';
+            _st.textContent = ' ' + r.signalStatus;
+            _lk.appendChild(_st);
+          }
           td.appendChild(_lk);
         } else {
           td.textContent = '\u2014';
@@ -2833,7 +2845,11 @@ window.RB_CONFIG = {
     "appliedDate": "2023-06-22",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2023/1069/oj/eng",
     "appliedReg": "Reg (EU) 2023/1069",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2023-06-22",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2023/1069/oj/eng",
+    "signalReg": "Reg (EU) 2023/1069",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -2847,7 +2863,11 @@ window.RB_CONFIG = {
     "appliedDate": "2017-04-26",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2017/623/oj/eng",
     "appliedReg": "Reg. (EU) 2017/623",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2017-04-26",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2017/623/oj/eng",
+    "signalReg": "Reg. (EU) 2017/623",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 12,
@@ -2861,7 +2881,11 @@ window.RB_CONFIG = {
     "appliedDate": "2023-02-28",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2022/1406/oj/eng",
     "appliedReg": "Reg. (EU) 2022/1406",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2023-02-28",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2022/1406/oj/eng",
+    "signalReg": "Reg. (EU) 2022/1406",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 65,
@@ -2875,7 +2899,11 @@ window.RB_CONFIG = {
     "appliedDate": "—",
     "appliedUrl": null,
     "appliedReg": "PLAN/2025/3053",
-    "appliedStatus": "Not yet applicable"
+    "appliedStatus": "Not yet applicable",
+    "signalDate": "2026-05-19",
+    "signalUrl": "https://open.efsa.europa.eu/questions/EFSA-Q-2025-00155",
+    "signalReg": "EFSA J (2025) – MRL modification: cherries",
+    "signalStatus": "Not yet applicable"
   },
   {
     "priority": 26,
@@ -2889,7 +2917,11 @@ window.RB_CONFIG = {
     "appliedDate": "2023-02-25",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2022/1363/oj/eng",
     "appliedReg": "Reg. (EU) 2022/1363",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2023-02-25",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2022/1363/oj/eng",
+    "signalReg": "Reg. (EU) 2022/1363",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 21,
@@ -2903,7 +2935,11 @@ window.RB_CONFIG = {
     "appliedDate": "2025-07-23",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2025/1305/oj/eng",
     "appliedReg": "Reg (EU) 2025/1305",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2025-07-23",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2025/1305/oj/eng",
+    "signalReg": "Reg (EU) 2025/1305",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 79,
@@ -2917,7 +2953,11 @@ window.RB_CONFIG = {
     "appliedDate": "2015-10-15",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2015/1608/oj/eng",
     "appliedReg": "Reg. (EU) 2015/1608",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2015-10-15",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2015/1608/oj/eng",
+    "signalReg": "Reg. (EU) 2015/1608",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 19,
@@ -2931,7 +2971,11 @@ window.RB_CONFIG = {
     "appliedDate": "2025-04-29",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2024/2619/oj/eng",
     "appliedReg": "Commission Regulation (EU) 2024/2619",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2025-04-29",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2024/2619/oj/eng",
+    "signalReg": "Commission Regulation (EU) 2024/2619",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 8,
@@ -2945,7 +2989,11 @@ window.RB_CONFIG = {
     "appliedDate": "2025-07-06",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2025/1164/oj/eng",
     "appliedReg": "Reg (EU) 2025/1164",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2025-07-06",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2025/1164/oj/eng",
+    "signalReg": "Reg (EU) 2025/1164",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -2959,7 +3007,11 @@ window.RB_CONFIG = {
     "appliedDate": "—",
     "appliedUrl": null,
     "appliedReg": null,
-    "appliedStatus": null
+    "appliedStatus": null,
+    "signalDate": "—",
+    "signalUrl": null,
+    "signalReg": null,
+    "signalStatus": null
   },
   {
     "priority": null,
@@ -2973,7 +3025,11 @@ window.RB_CONFIG = {
     "appliedDate": "—",
     "appliedUrl": null,
     "appliedReg": null,
-    "appliedStatus": null
+    "appliedStatus": null,
+    "signalDate": "—",
+    "signalUrl": null,
+    "signalReg": null,
+    "signalStatus": null
   },
   {
     "priority": null,
@@ -2987,7 +3043,11 @@ window.RB_CONFIG = {
     "appliedDate": "—",
     "appliedUrl": null,
     "appliedReg": null,
-    "appliedStatus": null
+    "appliedStatus": null,
+    "signalDate": "—",
+    "signalUrl": null,
+    "signalReg": null,
+    "signalStatus": null
   },
   {
     "priority": null,
@@ -3001,7 +3061,11 @@ window.RB_CONFIG = {
     "appliedDate": "—",
     "appliedUrl": null,
     "appliedReg": null,
-    "appliedStatus": null
+    "appliedStatus": null,
+    "signalDate": "—",
+    "signalUrl": null,
+    "signalReg": null,
+    "signalStatus": null
   },
   {
     "priority": null,
@@ -3015,7 +3079,11 @@ window.RB_CONFIG = {
     "appliedDate": "2025-04-30",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2024/2640/oj/eng",
     "appliedReg": "Commission Regulation (EU) 2024/2640",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2025-04-30",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2024/2640/oj/eng",
+    "signalReg": "Commission Regulation (EU) 2024/2640",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -3029,7 +3097,11 @@ window.RB_CONFIG = {
     "appliedDate": "2017-07-11",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2017/1016/oj/eng",
     "appliedReg": "Regulation (EU) 2017/1016",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2017-07-11",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2017/1016/oj/eng",
+    "signalReg": "Regulation (EU) 2017/1016",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 30,
@@ -3043,7 +3115,11 @@ window.RB_CONFIG = {
     "appliedDate": "2023-06-22",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2023/1069/oj/eng",
     "appliedReg": "Reg (EU) 2023/1069",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2023-06-22",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2023/1069/oj/eng",
+    "signalReg": "Reg (EU) 2023/1069",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 63,
@@ -3057,7 +3133,11 @@ window.RB_CONFIG = {
     "appliedDate": "2023-06-22",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2023/1069/oj/eng",
     "appliedReg": "Reg (EU) 2023/1069",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2023-06-22",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2023/1069/oj/eng",
+    "signalReg": "Reg (EU) 2023/1069",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -3071,7 +3151,11 @@ window.RB_CONFIG = {
     "appliedDate": "2023-08-20",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2023/198/oj/eng",
     "appliedReg": "Reg. (EU) 2023/198",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2023-08-20",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2023/198/oj/eng",
+    "signalReg": "Reg. (EU) 2023/198",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 6,
@@ -3085,7 +3169,11 @@ window.RB_CONFIG = {
     "appliedDate": "2026-05-12",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2026/876/oj/eng",
     "appliedReg": "Regulation (EU) 2026/876",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2026-05-12",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2026/876/oj/eng",
+    "signalReg": "Regulation (EU) 2026/876",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 54,
@@ -3099,7 +3187,11 @@ window.RB_CONFIG = {
     "appliedDate": "2023-06-22",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2023/1069/oj/eng",
     "appliedReg": "Reg (EU) 2023/1069",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2023-06-22",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2023/1069/oj/eng",
+    "signalReg": "Reg (EU) 2023/1069",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 8,
@@ -3113,7 +3205,11 @@ window.RB_CONFIG = {
     "appliedDate": "2016-11-24",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2016/1902/oj/eng",
     "appliedReg": "Reg. (EU) 2016/1902",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2016-11-24",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2016/1902/oj/eng",
+    "signalReg": "Reg. (EU) 2016/1902",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 14,
@@ -3127,7 +3223,11 @@ window.RB_CONFIG = {
     "appliedDate": "2015-05-13",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/1126/2014/oj/eng",
     "appliedReg": "Reg. (EU) No 1126/2014",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2015-05-13",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/1126/2014/oj/eng",
+    "signalReg": "Reg. (EU) No 1126/2014",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -3141,7 +3241,11 @@ window.RB_CONFIG = {
     "appliedDate": "2023-02-25",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2022/1363/oj/eng",
     "appliedReg": "Reg. (EU) 2022/1363",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2023-02-25",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2022/1363/oj/eng",
+    "signalReg": "Reg. (EU) 2022/1363",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 1,
@@ -3155,7 +3259,11 @@ window.RB_CONFIG = {
     "appliedDate": "2023-06-22",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2023/1069/oj/eng",
     "appliedReg": "Reg (EU) 2023/1069",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2023-06-22",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2023/1069/oj/eng",
+    "signalReg": "Reg (EU) 2023/1069",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 2,
@@ -3169,7 +3277,11 @@ window.RB_CONFIG = {
     "appliedDate": "2008-09-01",
     "appliedUrl": null,
     "appliedReg": "Reg. (EC) No 839/2008",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "—",
+    "signalUrl": null,
+    "signalReg": null,
+    "signalStatus": null
   },
   {
     "priority": 7,
@@ -3183,7 +3295,11 @@ window.RB_CONFIG = {
     "appliedDate": "2017-07-11",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2017/1016/oj/eng",
     "appliedReg": "Regulation (EU) 2017/1016",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2017-07-11",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2017/1016/oj/eng",
+    "signalReg": "Regulation (EU) 2017/1016",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 47,
@@ -3197,7 +3313,11 @@ window.RB_CONFIG = {
     "appliedDate": "—",
     "appliedUrl": null,
     "appliedReg": "PLAN/2024/2476",
-    "appliedStatus": "Not yet applicable"
+    "appliedStatus": "Not yet applicable",
+    "signalDate": "2026-05-19",
+    "signalUrl": "https://open.efsa.europa.eu/questions/EFSA-Q-2023-00421",
+    "signalReg": "EFSA J (2025) – Import tolerances: various crops",
+    "signalStatus": "Not yet applicable"
   },
   {
     "priority": 20,
@@ -3211,7 +3331,11 @@ window.RB_CONFIG = {
     "appliedDate": "2023-09-14",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2023/377/oj/eng",
     "appliedReg": "Reg. (EU) 2023/377",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2023-09-14",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2023/377/oj/eng",
+    "signalReg": "Reg. (EU) 2023/377",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -3225,7 +3349,11 @@ window.RB_CONFIG = {
     "appliedDate": "2021-11-10",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2021/644/oj/eng",
     "appliedReg": "Reg. (EU) 2021/644",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2021-11-10",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2021/644/oj/eng",
+    "signalReg": "Reg. (EU) 2021/644",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -3239,7 +3367,11 @@ window.RB_CONFIG = {
     "appliedDate": "2024-05-06",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2024/1078/oj/eng",
     "appliedReg": "Reg. (EU) 2024/1078",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2024-05-06",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2024/1078/oj/eng",
+    "signalReg": "Reg. (EU) 2024/1078",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 35,
@@ -3253,7 +3385,11 @@ window.RB_CONFIG = {
     "appliedDate": "2024-11-06",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2024/1077/oj/eng",
     "appliedReg": "Reg. (EU) 2024/1077",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2024-11-06",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2024/1077/oj/eng",
+    "signalReg": "Reg. (EU) 2024/1077",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 37,
@@ -3267,7 +3403,11 @@ window.RB_CONFIG = {
     "appliedDate": "2022-01-03",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2021/2202/oj/eng",
     "appliedReg": "Reg. (EU) 2021/2202",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2022-01-03",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2021/2202/oj/eng",
+    "signalReg": "Reg. (EU) 2021/2202",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 38,
@@ -3281,7 +3421,11 @@ window.RB_CONFIG = {
     "appliedDate": "2024-10-28",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2024/2612/oj/eng",
     "appliedReg": "Commission Regulation (EU) 2024/2612",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2024-10-28",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2024/2612/oj/eng",
+    "signalReg": "Commission Regulation (EU) 2024/2612",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 4,
@@ -3295,7 +3439,11 @@ window.RB_CONFIG = {
     "appliedDate": "—",
     "appliedUrl": null,
     "appliedReg": "PLAN/2025/3053",
-    "appliedStatus": "Not yet applicable"
+    "appliedStatus": "Not yet applicable",
+    "signalDate": "2026-05-19",
+    "signalUrl": "https://open.efsa.europa.eu/questions/EFSA-Q-2024-00515",
+    "signalReg": "EFSA J (2025) – MRL modification: barley/wheat/rye",
+    "signalStatus": "Not yet applicable"
   },
   {
     "priority": null,
@@ -3309,7 +3457,11 @@ window.RB_CONFIG = {
     "appliedDate": "2014-10-11",
     "appliedUrl": null,
     "appliedReg": "Reg. (EU) No 289/2014",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "—",
+    "signalUrl": null,
+    "signalReg": null,
+    "signalStatus": null
   },
   {
     "priority": null,
@@ -3323,7 +3475,11 @@ window.RB_CONFIG = {
     "appliedDate": "2023-06-20",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2023/1049/oj/eng",
     "appliedReg": "Reg. (EU) 2023/1049",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2023-06-20",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2023/1049/oj/eng",
+    "signalReg": "Reg. (EU) 2023/1049",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 15,
@@ -3337,7 +3493,11 @@ window.RB_CONFIG = {
     "appliedDate": "2024-11-06",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2024/1077/oj/eng",
     "appliedReg": "Reg. (EU) 2024/1077",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2024-11-06",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2024/1077/oj/eng",
+    "signalReg": "Reg. (EU) 2024/1077",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 13,
@@ -3351,7 +3511,11 @@ window.RB_CONFIG = {
     "appliedDate": "2025-07-23",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2025/1305/oj/eng",
     "appliedReg": "Reg (EU) 2025/1305",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2025-07-23",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2025/1305/oj/eng",
+    "signalReg": "Reg (EU) 2025/1305",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 10,
@@ -3365,7 +3529,11 @@ window.RB_CONFIG = {
     "appliedDate": "2019-07-11",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2019/1015/oj/eng",
     "appliedReg": "Reg. (EU) 2019/1015",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2019-07-11",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2019/1015/oj/eng",
+    "signalReg": "Reg. (EU) 2019/1015",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 57,
@@ -3379,7 +3547,11 @@ window.RB_CONFIG = {
     "appliedDate": "2024-04-02",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2023/1753/oj/eng",
     "appliedReg": "Reg. (EU) 2023/1753",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2024-04-02",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2023/1753/oj/eng",
+    "signalReg": "Reg. (EU) 2023/1753",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 55,
@@ -3393,7 +3565,11 @@ window.RB_CONFIG = {
     "appliedDate": "2021-11-02",
     "appliedUrl": null,
     "appliedReg": "Reg. 2021/1804",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "—",
+    "signalUrl": null,
+    "signalReg": null,
+    "signalStatus": null
   },
   {
     "priority": null,
@@ -3407,7 +3583,11 @@ window.RB_CONFIG = {
     "appliedDate": "2015-05-13",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/1127/2014/oj/eng",
     "appliedReg": "Reg. (EU) No 1127/2014",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2015-05-13",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/1127/2014/oj/eng",
+    "signalReg": "Reg. (EU) No 1127/2014",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 43,
@@ -3421,7 +3601,11 @@ window.RB_CONFIG = {
     "appliedDate": "2015-01-02",
     "appliedUrl": null,
     "appliedReg": "Reg. (EU) No 617/2014",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "—",
+    "signalUrl": null,
+    "signalReg": null,
+    "signalStatus": null
   },
   {
     "priority": 5,
@@ -3435,7 +3619,11 @@ window.RB_CONFIG = {
     "appliedDate": "2022-08-18",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2022/1324/oj/eng",
     "appliedReg": "Reg. (EU) 2022/1324",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2022-08-18",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2022/1324/oj/eng",
+    "signalReg": "Reg. (EU) 2022/1324",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 5,
@@ -3449,7 +3637,11 @@ window.RB_CONFIG = {
     "appliedDate": "2026-02-11",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2026/140/oj/eng",
     "appliedReg": "Commission Regulation (EU) 2026/140",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2026-02-11",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2026/140/oj/eng",
+    "signalReg": "Commission Regulation (EU) 2026/140",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 36,
@@ -3463,7 +3655,11 @@ window.RB_CONFIG = {
     "appliedDate": "2024-06-11",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2024/1355/oj/eng",
     "appliedReg": "Reg. (EU) 2024/1355",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2024-06-11",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2024/1355/oj/eng",
+    "signalReg": "Reg. (EU) 2024/1355",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 3,
@@ -3477,7 +3673,11 @@ window.RB_CONFIG = {
     "appliedDate": "2023-06-19",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2023/1042/oj/eng",
     "appliedReg": "Reg. (EU) 2023/1042",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2023-06-19",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2023/1042/oj/eng",
+    "signalReg": "Reg. (EU) 2023/1042",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 24,
@@ -3491,7 +3691,11 @@ window.RB_CONFIG = {
     "appliedDate": "2026-05-12",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2026/876/oj/eng",
     "appliedReg": "Regulation (EU) 2026/876",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2026-05-12",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2026/876/oj/eng",
+    "signalReg": "Regulation (EU) 2026/876",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 100,
@@ -3505,7 +3709,11 @@ window.RB_CONFIG = {
     "appliedDate": "2023-09-14",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2023/377/oj/eng",
     "appliedReg": "Reg. (EU) 2023/377",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2023-09-14",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2023/377/oj/eng",
+    "signalReg": "Reg. (EU) 2023/377",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 51,
@@ -3519,7 +3727,11 @@ window.RB_CONFIG = {
     "appliedDate": "2023-02-25",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2022/1363/oj/eng",
     "appliedReg": "Reg. (EU) 2022/1363",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2023-02-25",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2022/1363/oj/eng",
+    "signalReg": "Reg. (EU) 2022/1363",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -3533,7 +3745,11 @@ window.RB_CONFIG = {
     "appliedDate": "2023-02-25",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2022/1363/oj/eng",
     "appliedReg": "Reg. (EU) 2022/1363",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2023-02-25",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2022/1363/oj/eng",
+    "signalReg": "Reg. (EU) 2022/1363",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 28,
@@ -3547,7 +3763,11 @@ window.RB_CONFIG = {
     "appliedDate": "2023-02-25",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2022/1363/oj/eng",
     "appliedReg": "Reg. (EU) 2022/1363",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2023-02-25",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2022/1363/oj/eng",
+    "signalReg": "Reg. (EU) 2022/1363",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -3561,7 +3781,11 @@ window.RB_CONFIG = {
     "appliedDate": "2026-04-20",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2026/742/oj/eng",
     "appliedReg": "Regulation (EU) 2026/742",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2026-04-20",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2026/742/oj/eng",
+    "signalReg": "Regulation (EU) 2026/742",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -3575,7 +3799,11 @@ window.RB_CONFIG = {
     "appliedDate": "2021-05-17",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2020/1566/oj/eng",
     "appliedReg": "Reg. (EU) 2020/1566",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2021-05-17",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2020/1566/oj/eng",
+    "signalReg": "Reg. (EU) 2020/1566",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -3589,7 +3817,11 @@ window.RB_CONFIG = {
     "appliedDate": "2019-11-18",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2019/1791/oj/eng",
     "appliedReg": "Reg. (EU) 2019/1791",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2019-11-18",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2019/1791/oj/eng",
+    "signalReg": "Reg. (EU) 2019/1791",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -3603,7 +3835,11 @@ window.RB_CONFIG = {
     "appliedDate": "2014-03-06",
     "appliedUrl": null,
     "appliedReg": "Reg. (EU) No 777/2013",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "—",
+    "signalUrl": null,
+    "signalReg": null,
+    "signalStatus": null
   },
   {
     "priority": null,
@@ -3617,7 +3853,11 @@ window.RB_CONFIG = {
     "appliedDate": "2023-02-25",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2022/1363/oj/eng",
     "appliedReg": "Reg. (EU) 2022/1363",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2023-02-25",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2022/1363/oj/eng",
+    "signalReg": "Reg. (EU) 2022/1363",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -3631,7 +3871,11 @@ window.RB_CONFIG = {
     "appliedDate": "2024-11-06",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2024/1077/oj/eng",
     "appliedReg": "Reg. (EU) 2024/1077",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2024-11-06",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2024/1077/oj/eng",
+    "signalReg": "Reg. (EU) 2024/1077",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 25,
@@ -3645,7 +3889,11 @@ window.RB_CONFIG = {
     "appliedDate": "—",
     "appliedUrl": null,
     "appliedReg": "PLAN/2025/3053",
-    "appliedStatus": "Not yet applicable"
+    "appliedStatus": "Not yet applicable",
+    "signalDate": "2026-05-19",
+    "signalUrl": "https://open.efsa.europa.eu/questions/EFSA-Q-2025-00251",
+    "signalReg": "EFSA J (2026) – MRL modification: various crops",
+    "signalStatus": "Not yet applicable"
   },
   {
     "priority": 29,
@@ -3659,7 +3907,11 @@ window.RB_CONFIG = {
     "appliedDate": "2023-02-26",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2023/129/oj/eng",
     "appliedReg": "Reg. (EU) 2023/129",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2023-02-26",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2023/129/oj/eng",
+    "signalReg": "Reg. (EU) 2023/129",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 25,
@@ -3673,7 +3925,11 @@ window.RB_CONFIG = {
     "appliedDate": "2016-04-19",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2016/452/oj/eng",
     "appliedReg": "Reg. (EU) No 2016/452",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2016-04-19",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2016/452/oj/eng",
+    "signalReg": "Reg. (EU) No 2016/452",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 31,
@@ -3687,7 +3943,11 @@ window.RB_CONFIG = {
     "appliedDate": "2023-02-25",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2022/1363/oj/eng",
     "appliedReg": "Reg. (EU) 2022/1363",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2023-02-25",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2022/1363/oj/eng",
+    "signalReg": "Reg. (EU) 2022/1363",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -3701,7 +3961,11 @@ window.RB_CONFIG = {
     "appliedDate": "2017-07-11",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2017/1016/oj/eng",
     "appliedReg": "Regulation (EU) 2017/1016",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2017-07-11",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2017/1016/oj/eng",
+    "signalReg": "Regulation (EU) 2017/1016",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -3715,7 +3979,11 @@ window.RB_CONFIG = {
     "appliedDate": "2026-05-12",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2026/876/oj/eng",
     "appliedReg": "Regulation (EU) 2026/876",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2026-05-12",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2026/876/oj/eng",
+    "signalReg": "Regulation (EU) 2026/876",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 56,
@@ -3729,7 +3997,11 @@ window.RB_CONFIG = {
     "appliedDate": "2027-01-04",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2026/1314/oj/eng",
     "appliedReg": "Regulation (EU) 2026/1314",
-    "appliedStatus": "Not yet applicable"
+    "appliedStatus": "Not yet applicable",
+    "signalDate": "2026-02-11",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2026/1314/oj/eng",
+    "signalReg": "Regulation (EU) 2026/1314",
+    "signalStatus": "Not yet applicable"
   },
   {
     "priority": 42,
@@ -3743,7 +4015,11 @@ window.RB_CONFIG = {
     "appliedDate": "2014-06-05",
     "appliedUrl": null,
     "appliedReg": "Reg. (EU) No 491/2014",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "—",
+    "signalUrl": null,
+    "signalReg": null,
+    "signalStatus": null
   },
   {
     "priority": null,
@@ -3757,7 +4033,11 @@ window.RB_CONFIG = {
     "appliedDate": "2022-08-18",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2022/1324/oj/eng",
     "appliedReg": "Reg. (EU) 2022/1324",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2022-08-18",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2022/1324/oj/eng",
+    "signalReg": "Reg. (EU) 2022/1324",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -3771,7 +4051,11 @@ window.RB_CONFIG = {
     "appliedDate": "2022-08-10",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2022/1264/oj/eng",
     "appliedReg": "Reg. (EU) 2022/1264",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2022-08-10",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2022/1264/oj/eng",
+    "signalReg": "Reg. (EU) 2022/1264",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -3785,7 +4069,11 @@ window.RB_CONFIG = {
     "appliedDate": "2015-06-24",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2015/845/oj/eng",
     "appliedReg": "Reg. (EU) 2015/845",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2015-06-24",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2015/845/oj/eng",
+    "signalReg": "Reg. (EU) 2015/845",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 77,
@@ -3799,7 +4087,11 @@ window.RB_CONFIG = {
     "appliedDate": "2024-10-29",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2024/2633/oj/eng",
     "appliedReg": "Commission Regulation (EU) 2024/2633",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2024-10-29",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2024/2633/oj/eng",
+    "signalReg": "Commission Regulation (EU) 2024/2633",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -3813,7 +4105,11 @@ window.RB_CONFIG = {
     "appliedDate": "2026-02-11",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2026/140/oj/eng",
     "appliedReg": "Commission Regulation (EU) 2026/140",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2026-02-11",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2026/140/oj/eng",
+    "signalReg": "Commission Regulation (EU) 2026/140",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -3827,7 +4123,11 @@ window.RB_CONFIG = {
     "appliedDate": "2024-05-06",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2024/1078/oj/eng",
     "appliedReg": "Reg. (EU) 2024/1078",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2024-05-06",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2024/1078/oj/eng",
+    "signalReg": "Reg. (EU) 2024/1078",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 48,
@@ -3841,7 +4141,11 @@ window.RB_CONFIG = {
     "appliedDate": "2019-01-01",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2019/50/oj/eng",
     "appliedReg": "Reg. (EU) 2019/50",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2019-01-01",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2019/50/oj/eng",
+    "signalReg": "Reg. (EU) 2019/50",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 49,
@@ -3855,7 +4159,11 @@ window.RB_CONFIG = {
     "appliedDate": "2023-02-25",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2022/1363/oj/eng",
     "appliedReg": "Reg. (EU) 2022/1363",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2023-02-25",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2022/1363/oj/eng",
+    "signalReg": "Reg. (EU) 2022/1363",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -3869,7 +4177,11 @@ window.RB_CONFIG = {
     "appliedDate": "2015-06-24",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2015/845/oj/eng",
     "appliedReg": "Reg. (EU) 2015/845",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2015-06-24",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2015/845/oj/eng",
+    "signalReg": "Reg. (EU) 2015/845",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -3883,7 +4195,11 @@ window.RB_CONFIG = {
     "appliedDate": "2008-09-01",
     "appliedUrl": null,
     "appliedReg": "Reg. (EC) No 839/2008",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "—",
+    "signalUrl": null,
+    "signalReg": null,
+    "signalStatus": null
   },
   {
     "priority": 60,
@@ -3897,7 +4213,11 @@ window.RB_CONFIG = {
     "appliedDate": "2026-05-12",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2026/876/oj/eng",
     "appliedReg": "Regulation (EU) 2026/876",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2026-05-12",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2026/876/oj/eng",
+    "signalReg": "Regulation (EU) 2026/876",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -3911,7 +4231,11 @@ window.RB_CONFIG = {
     "appliedDate": "2025-04-28",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2024/2609/oj/eng",
     "appliedReg": "Reg. (EU) 2024/2609",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2025-04-28",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2024/2609/oj/eng",
+    "signalReg": "Reg. (EU) 2024/2609",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -3925,7 +4249,11 @@ window.RB_CONFIG = {
     "appliedDate": "2018-11-01",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2018/1514/oj/eng",
     "appliedReg": "Reg. (EU) 2018/1514",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2018-11-01",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2018/1514/oj/eng",
+    "signalReg": "Reg. (EU) 2018/1514",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -3939,7 +4267,11 @@ window.RB_CONFIG = {
     "appliedDate": "2015-01-02",
     "appliedUrl": null,
     "appliedReg": "Reg. (EU) No 617/2014",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "—",
+    "signalUrl": null,
+    "signalReg": null,
+    "signalStatus": null
   },
   {
     "priority": null,
@@ -3953,7 +4285,11 @@ window.RB_CONFIG = {
     "appliedDate": "2023-02-25",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2022/1363/oj/eng",
     "appliedReg": "Reg. (EU) 2022/1363",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2023-02-25",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2022/1363/oj/eng",
+    "signalReg": "Reg. (EU) 2022/1363",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -3967,7 +4303,11 @@ window.RB_CONFIG = {
     "appliedDate": "2008-09-01",
     "appliedUrl": null,
     "appliedReg": "Reg. (EC) No 149/2008",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "—",
+    "signalUrl": null,
+    "signalReg": null,
+    "signalStatus": null
   },
   {
     "priority": null,
@@ -3981,7 +4321,11 @@ window.RB_CONFIG = {
     "appliedDate": "2024-12-11",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2024/1342/oj/eng",
     "appliedReg": "Reg. (EU) 2024/1342",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2024-12-11",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2024/1342/oj/eng",
+    "signalReg": "Reg. (EU) 2024/1342",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 100,
@@ -3995,7 +4339,11 @@ window.RB_CONFIG = {
     "appliedDate": "2023-08-16",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2023/173/oj/eng",
     "appliedReg": "Reg. (EU) 2023/173",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2023-08-16",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2023/173/oj/eng",
+    "signalReg": "Reg. (EU) 2023/173",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4009,7 +4357,11 @@ window.RB_CONFIG = {
     "appliedDate": "2008-09-01",
     "appliedUrl": null,
     "appliedReg": "Reg. (EC) No 149/2008",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "—",
+    "signalUrl": null,
+    "signalReg": null,
+    "signalStatus": null
   },
   {
     "priority": null,
@@ -4023,7 +4375,11 @@ window.RB_CONFIG = {
     "appliedDate": "2022-01-03",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2021/2202/oj/eng",
     "appliedReg": "Reg. (EU) 2021/2202",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2022-01-03",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2021/2202/oj/eng",
+    "signalReg": "Reg. (EU) 2021/2202",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4037,7 +4393,11 @@ window.RB_CONFIG = {
     "appliedDate": "2025-07-23",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2025/1305/oj/eng",
     "appliedReg": "Reg (EU) 2025/1305",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2025-07-23",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2025/1305/oj/eng",
+    "signalReg": "Reg (EU) 2025/1305",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 9,
@@ -4051,7 +4411,11 @@ window.RB_CONFIG = {
     "appliedDate": "2016-01-21",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2015/1040/oj/eng",
     "appliedReg": "Reg. (EU) 2015/1040",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2016-01-21",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2015/1040/oj/eng",
+    "signalReg": "Reg. (EU) 2015/1040",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4065,7 +4429,11 @@ window.RB_CONFIG = {
     "appliedDate": "2018-06-05",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2018/687/oj/eng",
     "appliedReg": "Reg. (EU) 2018/687",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2018-06-05",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2018/687/oj/eng",
+    "signalReg": "Reg. (EU) 2018/687",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4079,7 +4447,11 @@ window.RB_CONFIG = {
     "appliedDate": "2020-01-04",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2019/973/oj/eng",
     "appliedReg": "Reg. (EU) 2019/973",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2020-01-04",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2019/973/oj/eng",
+    "signalReg": "Reg. (EU) 2019/973",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4093,7 +4465,11 @@ window.RB_CONFIG = {
     "appliedDate": "2019-08-13",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2019/91/oj/eng",
     "appliedReg": "Reg. (EU) 2019/91",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2019-08-13",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2019/91/oj/eng",
+    "signalReg": "Reg. (EU) 2019/91",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4107,7 +4483,11 @@ window.RB_CONFIG = {
     "appliedDate": "2021-11-10",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2021/644/oj/eng",
     "appliedReg": "Reg. (EU) 2021/644",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2021-11-10",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2021/644/oj/eng",
+    "signalReg": "Reg. (EU) 2021/644",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4121,7 +4501,11 @@ window.RB_CONFIG = {
     "appliedDate": "2025-08-24",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2025/195/oj/eng",
     "appliedReg": "Reg.(EU) 2025/195",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2025-08-24",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2025/195/oj/eng",
+    "signalReg": "Reg.(EU) 2025/195",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 33,
@@ -4135,7 +4519,11 @@ window.RB_CONFIG = {
     "appliedDate": "2025-08-19",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2025/146/oj/eng",
     "appliedReg": "Reg. (EU) 2025/146",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2025-08-19",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2025/146/oj/eng",
+    "signalReg": "Reg. (EU) 2025/146",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4149,7 +4537,11 @@ window.RB_CONFIG = {
     "appliedDate": "2008-09-01",
     "appliedUrl": null,
     "appliedReg": "Reg. (EC) No 149/2008",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "—",
+    "signalUrl": null,
+    "signalReg": null,
+    "signalStatus": null
   },
   {
     "priority": null,
@@ -4163,7 +4555,11 @@ window.RB_CONFIG = {
     "appliedDate": "2014-06-05",
     "appliedUrl": null,
     "appliedReg": "Reg. (EU) No 491/2014",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "—",
+    "signalUrl": null,
+    "signalReg": null,
+    "signalStatus": null
   },
   {
     "priority": null,
@@ -4177,7 +4573,11 @@ window.RB_CONFIG = {
     "appliedDate": "2013-04-06",
     "appliedUrl": null,
     "appliedReg": "Reg. (EU) No 293/2013",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "—",
+    "signalUrl": null,
+    "signalReg": null,
+    "signalStatus": null
   },
   {
     "priority": null,
@@ -4191,7 +4591,11 @@ window.RB_CONFIG = {
     "appliedDate": "2014-06-05",
     "appliedUrl": null,
     "appliedReg": "Reg. (EU) No 491/2014",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "—",
+    "signalUrl": null,
+    "signalReg": null,
+    "signalStatus": null
   },
   {
     "priority": null,
@@ -4205,7 +4609,11 @@ window.RB_CONFIG = {
     "appliedDate": "2021-01-02",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2020/770/oj/eng",
     "appliedReg": "Reg. (EU) 2020/770",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2021-01-02",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2020/770/oj/eng",
+    "signalReg": "Reg. (EU) 2020/770",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4219,7 +4627,11 @@ window.RB_CONFIG = {
     "appliedDate": "2024-12-05",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2024/1314/oj/eng",
     "appliedReg": "Reg. (EU) 2024/1314",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2024-12-05",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2024/1314/oj/eng",
+    "signalReg": "Reg. (EU) 2024/1314",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 35,
@@ -4233,7 +4645,11 @@ window.RB_CONFIG = {
     "appliedDate": "2014-10-11",
     "appliedUrl": null,
     "appliedReg": "Reg. (EU) No 289/2014",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "—",
+    "signalUrl": null,
+    "signalReg": null,
+    "signalStatus": null
   },
   {
     "priority": null,
@@ -4247,7 +4663,11 @@ window.RB_CONFIG = {
     "appliedDate": "2023-02-21",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2022/1321/oj/eng",
     "appliedReg": "Reg. (EU) 2022/1321",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2023-02-21",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2022/1321/oj/eng",
+    "signalReg": "Reg. (EU) 2022/1321",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4261,7 +4681,11 @@ window.RB_CONFIG = {
     "appliedDate": "2025-07-06",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2025/1164/oj/eng",
     "appliedReg": "Reg (EU) 2025/1164",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2025-07-06",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2025/1164/oj/eng",
+    "signalReg": "Reg (EU) 2025/1164",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4275,7 +4699,11 @@ window.RB_CONFIG = {
     "appliedDate": "2021-05-25",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2020/1633/oj/eng",
     "appliedReg": "Reg. (EU) 2020/1633",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2021-05-25",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2020/1633/oj/eng",
+    "signalReg": "Reg. (EU) 2020/1633",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4289,7 +4717,11 @@ window.RB_CONFIG = {
     "appliedDate": "2024-06-11",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2024/1355/oj/eng",
     "appliedReg": "Reg. (EU) 2024/1355",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2024-06-11",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2024/1355/oj/eng",
+    "signalReg": "Reg. (EU) 2024/1355",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4303,7 +4735,11 @@ window.RB_CONFIG = {
     "appliedDate": "2016-01-21",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2015/1040/oj/eng",
     "appliedReg": "Reg. (EU) 2015/1040",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2016-01-21",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2015/1040/oj/eng",
+    "signalReg": "Reg. (EU) 2015/1040",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4317,7 +4753,11 @@ window.RB_CONFIG = {
     "appliedDate": "—",
     "appliedUrl": null,
     "appliedReg": "PLAN/2024/1305",
-    "appliedStatus": "Not yet applicable"
+    "appliedStatus": "Not yet applicable",
+    "signalDate": "2025-06-23",
+    "signalUrl": "https://open.efsa.europa.eu/questions/EFSA-Q-2025-00196",
+    "signalReg": "EFSA J (2024) – Targeted MRL review",
+    "signalStatus": "Not yet applicable"
   },
   {
     "priority": null,
@@ -4331,7 +4771,11 @@ window.RB_CONFIG = {
     "appliedDate": "2025-04-17",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2025/581/oj/eng",
     "appliedReg": "Reg. (EU)  2025/581",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2025-04-17",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2025/581/oj/eng",
+    "signalReg": "Reg. (EU)  2025/581",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4345,7 +4789,11 @@ window.RB_CONFIG = {
     "appliedDate": "2008-09-01",
     "appliedUrl": null,
     "appliedReg": "Reg. (EC) No 839/2008",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "—",
+    "signalUrl": null,
+    "signalReg": null,
+    "signalStatus": null
   },
   {
     "priority": null,
@@ -4359,7 +4807,11 @@ window.RB_CONFIG = {
     "appliedDate": "2015-01-02",
     "appliedUrl": null,
     "appliedReg": "Reg. (EU) No 617/2014",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "—",
+    "signalUrl": null,
+    "signalReg": null,
+    "signalStatus": null
   },
   {
     "priority": null,
@@ -4373,7 +4825,11 @@ window.RB_CONFIG = {
     "appliedDate": "2023-02-21",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2022/1321/oj/eng",
     "appliedReg": "Reg. (EU) 2022/1321",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2023-02-21",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2022/1321/oj/eng",
+    "signalReg": "Reg. (EU) 2022/1321",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4387,7 +4843,11 @@ window.RB_CONFIG = {
     "appliedDate": "2021-09-02",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2021/155/oj/eng",
     "appliedReg": "Reg. (EU) 2021/155",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2021-09-02",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2021/155/oj/eng",
+    "signalReg": "Reg. (EU) 2021/155",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4401,7 +4861,11 @@ window.RB_CONFIG = {
     "appliedDate": "2025-07-23",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2025/1305/oj/eng",
     "appliedReg": "Reg (EU) 2025/1305",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2025-07-23",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2025/1305/oj/eng",
+    "signalReg": "Reg (EU) 2025/1305",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4415,7 +4879,11 @@ window.RB_CONFIG = {
     "appliedDate": "2026-01-06",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2025/1163/oj/eng",
     "appliedReg": "Reg (EU) 2025/1163",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2026-01-06",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2025/1163/oj/eng",
+    "signalReg": "Reg (EU) 2025/1163",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4429,7 +4897,11 @@ window.RB_CONFIG = {
     "appliedDate": "2024-08-14",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2024/376/oj/eng",
     "appliedReg": "Reg. (EU) 2024/376",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2024-08-14",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2024/376/oj/eng",
+    "signalReg": "Reg. (EU) 2024/376",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4443,7 +4915,11 @@ window.RB_CONFIG = {
     "appliedDate": "2026-01-06",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2025/1163/oj/eng",
     "appliedReg": "Reg (EU) 2025/1163",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2026-01-06",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2025/1163/oj/eng",
+    "signalReg": "Reg (EU) 2025/1163",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4457,7 +4933,11 @@ window.RB_CONFIG = {
     "appliedDate": "2020-07-09",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2020/856/oj/eng",
     "appliedReg": "Reg. (EU) 2020/856",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2020-07-09",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2020/856/oj/eng",
+    "signalReg": "Reg. (EU) 2020/856",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4471,7 +4951,11 @@ window.RB_CONFIG = {
     "appliedDate": "2024-06-11",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2024/1355/oj/eng",
     "appliedReg": "Reg. (EU) 2024/1355",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2024-06-11",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2024/1355/oj/eng",
+    "signalReg": "Reg. (EU) 2024/1355",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4485,7 +4969,11 @@ window.RB_CONFIG = {
     "appliedDate": "2016-04-26",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2016/486/oj/eng",
     "appliedReg": "Reg. (EU) 2016/486",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2016-04-26",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2016/486/oj/eng",
+    "signalReg": "Reg. (EU) 2016/486",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4499,7 +4987,11 @@ window.RB_CONFIG = {
     "appliedDate": "2022-05-16",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2021/1881/oj/eng",
     "appliedReg": "Reg. (EU) 2021/1881",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2022-05-16",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2021/1881/oj/eng",
+    "signalReg": "Reg. (EU) 2021/1881",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4513,7 +5005,11 @@ window.RB_CONFIG = {
     "appliedDate": "2025-02-11",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2025/115/oj/eng",
     "appliedReg": "Reg. (EU) 2025/115",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2025-02-11",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2025/115/oj/eng",
+    "signalReg": "Reg. (EU) 2025/115",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 45,
@@ -4527,7 +5023,11 @@ window.RB_CONFIG = {
     "appliedDate": "2021-07-08",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2021/976/oj/eng",
     "appliedReg": "Reg. (EU) 2021/976",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2021-07-08",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2021/976/oj/eng",
+    "signalReg": "Reg. (EU) 2021/976",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4541,7 +5041,11 @@ window.RB_CONFIG = {
     "appliedDate": "2020-07-09",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2020/856/oj/eng",
     "appliedReg": "Reg. (EU) 2020/856",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2020-07-09",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2020/856/oj/eng",
+    "signalReg": "Reg. (EU) 2020/856",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4555,7 +5059,11 @@ window.RB_CONFIG = {
     "appliedDate": "2015-01-02",
     "appliedUrl": null,
     "appliedReg": "Reg. (EU) No 617/2014",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "—",
+    "signalUrl": null,
+    "signalReg": null,
+    "signalStatus": null
   },
   {
     "priority": null,
@@ -4569,7 +5077,11 @@ window.RB_CONFIG = {
     "appliedDate": "2018-02-06",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2018/70/oj/eng",
     "appliedReg": "Reg. (EU) 2018/70",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2018-02-06",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2018/70/oj/eng",
+    "signalReg": "Reg. (EU) 2018/70",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4583,7 +5095,11 @@ window.RB_CONFIG = {
     "appliedDate": "2023-02-25",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2022/1363/oj/eng",
     "appliedReg": "Reg. (EU) 2022/1363",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2023-02-25",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2022/1363/oj/eng",
+    "signalReg": "Reg. (EU) 2022/1363",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4597,7 +5113,11 @@ window.RB_CONFIG = {
     "appliedDate": "2021-11-02",
     "appliedUrl": null,
     "appliedReg": "Reg. 2021/1804",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "—",
+    "signalUrl": null,
+    "signalReg": null,
+    "signalStatus": null
   },
   {
     "priority": null,
@@ -4611,7 +5131,11 @@ window.RB_CONFIG = {
     "appliedDate": "2019-11-18",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2019/1791/oj/eng",
     "appliedReg": "Reg. (EU) 2019/1791",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2019-11-18",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2019/1791/oj/eng",
+    "signalReg": "Reg. (EU) 2019/1791",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4625,7 +5149,11 @@ window.RB_CONFIG = {
     "appliedDate": "2016-06-09",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2015/2075/oj/eng",
     "appliedReg": "Reg. (EU) 2015/2075",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2016-06-09",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2015/2075/oj/eng",
+    "signalReg": "Reg. (EU) 2015/2075",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4639,7 +5167,11 @@ window.RB_CONFIG = {
     "appliedDate": "2027-01-04",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2026/1314/oj/eng",
     "appliedReg": "Regulation (EU) 2026/1314",
-    "appliedStatus": "Not yet applicable"
+    "appliedStatus": "Not yet applicable",
+    "signalDate": "2026-02-06",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2026/1314/oj/eng",
+    "signalReg": "Regulation (EU) 2026/1314",
+    "signalStatus": "Not yet applicable"
   },
   {
     "priority": null,
@@ -4653,7 +5185,11 @@ window.RB_CONFIG = {
     "appliedDate": "2024-04-08",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2023/1783/oj/eng",
     "appliedReg": "Reg. (EU) 2023/1783",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2024-04-08",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2023/1783/oj/eng",
+    "signalReg": "Reg. (EU) 2023/1783",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4667,7 +5203,11 @@ window.RB_CONFIG = {
     "appliedDate": "2015-01-02",
     "appliedUrl": null,
     "appliedReg": "Reg. (EU) No 617/2014",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "—",
+    "signalUrl": null,
+    "signalReg": null,
+    "signalStatus": null
   },
   {
     "priority": null,
@@ -4681,7 +5221,11 @@ window.RB_CONFIG = {
     "appliedDate": "2025-07-23",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2025/1305/oj/eng",
     "appliedReg": "Reg (EU) 2025/1305",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2025-07-23",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2025/1305/oj/eng",
+    "signalReg": "Reg (EU) 2025/1305",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4695,7 +5239,11 @@ window.RB_CONFIG = {
     "appliedDate": "2015-05-13",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/1127/2014/oj/eng",
     "appliedReg": "Reg. (EU) No 1127/2014",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2015-05-13",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/1127/2014/oj/eng",
+    "signalReg": "Reg. (EU) No 1127/2014",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4709,7 +5257,11 @@ window.RB_CONFIG = {
     "appliedDate": "2024-10-14",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2024/891/oj/eng",
     "appliedReg": "Reg. (EU) 2024/891",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2024-10-14",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2024/891/oj/eng",
+    "signalReg": "Reg. (EU) 2024/891",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4723,7 +5275,11 @@ window.RB_CONFIG = {
     "appliedDate": "2020-04-07",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2019/1559/oj/eng",
     "appliedReg": "Reg.(EU) 2019/1559",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2020-04-07",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2019/1559/oj/eng",
+    "signalReg": "Reg.(EU) 2019/1559",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4737,7 +5293,11 @@ window.RB_CONFIG = {
     "appliedDate": "2023-06-20",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2023/1049/oj/eng",
     "appliedReg": "Reg. (EU) 2023/1049",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2023-06-20",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2023/1049/oj/eng",
+    "signalReg": "Reg. (EU) 2023/1049",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4751,7 +5311,11 @@ window.RB_CONFIG = {
     "appliedDate": "2022-05-10",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2021/1841/oj/eng",
     "appliedReg": "Reg. (EU) 2021/1841",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2022-05-10",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2021/1841/oj/eng",
+    "signalReg": "Reg. (EU) 2021/1841",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4765,7 +5329,11 @@ window.RB_CONFIG = {
     "appliedDate": "2027-01-04",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2026/1314/oj/eng",
     "appliedReg": "Regulation (EU) 2026/1314",
-    "appliedStatus": "Not yet applicable"
+    "appliedStatus": "Not yet applicable",
+    "signalDate": "2026-02-06",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2026/1314/oj/eng",
+    "signalReg": "Regulation (EU) 2026/1314",
+    "signalStatus": "Not yet applicable"
   },
   {
     "priority": null,
@@ -4779,7 +5347,11 @@ window.RB_CONFIG = {
     "appliedDate": "—",
     "appliedUrl": null,
     "appliedReg": "PLAN/2024/1305",
-    "appliedStatus": "Not yet applicable"
+    "appliedStatus": "Not yet applicable",
+    "signalDate": "2025-07-23",
+    "signalUrl": "https://open.efsa.europa.eu/questions/EFSA-Q-2025-00432",
+    "signalReg": "EFSA J (2024) – MRL review (Art.12)",
+    "signalStatus": "Not yet applicable"
   },
   {
     "priority": null,
@@ -4793,7 +5365,11 @@ window.RB_CONFIG = {
     "appliedDate": "2022-01-27",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2021/1110/oj/eng",
     "appliedReg": "Reg. (EU) 2021/1110",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2022-01-27",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2021/1110/oj/eng",
+    "signalReg": "Reg. (EU) 2021/1110",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4807,7 +5383,11 @@ window.RB_CONFIG = {
     "appliedDate": "2023-02-21",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2022/1321/oj/eng",
     "appliedReg": "Reg. (EU) 2022/1321",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2023-02-21",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2022/1321/oj/eng",
+    "signalReg": "Reg. (EU) 2022/1321",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4821,7 +5401,11 @@ window.RB_CONFIG = {
     "appliedDate": "2008-09-01",
     "appliedUrl": null,
     "appliedReg": "Reg. (EC) No 149/2008",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "—",
+    "signalUrl": null,
+    "signalReg": null,
+    "signalStatus": null
   },
   {
     "priority": null,
@@ -4835,7 +5419,11 @@ window.RB_CONFIG = {
     "appliedDate": "2027-01-04",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2026/1314/oj/eng",
     "appliedReg": "Regulation (EU) 2026/1314",
-    "appliedStatus": "Not yet applicable"
+    "appliedStatus": "Not yet applicable",
+    "signalDate": "2026-02-06",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2026/1314/oj/eng",
+    "signalReg": "Regulation (EU) 2026/1314",
+    "signalStatus": "Not yet applicable"
   },
   {
     "priority": null,
@@ -4849,7 +5437,11 @@ window.RB_CONFIG = {
     "appliedDate": "2024-10-28",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2024/2612/oj/eng",
     "appliedReg": "Commission Regulation (EU) 2024/2612",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2024-10-28",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2024/2612/oj/eng",
+    "signalReg": "Commission Regulation (EU) 2024/2612",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 82,
@@ -4863,7 +5455,11 @@ window.RB_CONFIG = {
     "appliedDate": "2026-05-05",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2026/840/oj/eng",
     "appliedReg": "Reg. (EU) 2026/840",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2026-05-05",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2026/840/oj/eng",
+    "signalReg": "Reg. (EU) 2026/840",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 17,
@@ -4877,7 +5473,11 @@ window.RB_CONFIG = {
     "appliedDate": "2013-04-06",
     "appliedUrl": null,
     "appliedReg": "Reg. (EU) No 293/2013",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "—",
+    "signalUrl": null,
+    "signalReg": null,
+    "signalStatus": null
   },
   {
     "priority": null,
@@ -4891,7 +5491,11 @@ window.RB_CONFIG = {
     "appliedDate": "2021-07-08",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2021/976/oj/eng",
     "appliedReg": "Reg. (EU) 2021/976",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2021-07-08",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2021/976/oj/eng",
+    "signalReg": "Reg. (EU) 2021/976",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4905,7 +5509,11 @@ window.RB_CONFIG = {
     "appliedDate": "2017-01-19",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2016/1015/oj/eng",
     "appliedReg": "Reg. (EU) 2016/1015",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2017-01-19",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2016/1015/oj/eng",
+    "signalReg": "Reg. (EU) 2016/1015",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4919,7 +5527,11 @@ window.RB_CONFIG = {
     "appliedDate": "—",
     "appliedUrl": null,
     "appliedReg": "PLAN/2025/3053",
-    "appliedStatus": "Not yet applicable"
+    "appliedStatus": "Not yet applicable",
+    "signalDate": "2026-05-19",
+    "signalUrl": "https://open.efsa.europa.eu/questions/EFSA-Q-2023-00874",
+    "signalReg": "EFSA J (2025) – MRL modification: grapes",
+    "signalStatus": "Not yet applicable"
   },
   {
     "priority": null,
@@ -4933,7 +5545,11 @@ window.RB_CONFIG = {
     "appliedDate": "2014-06-23",
     "appliedUrl": null,
     "appliedReg": "Reg. (EU) No 588/2014",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "—",
+    "signalUrl": null,
+    "signalReg": null,
+    "signalStatus": null
   },
   {
     "priority": null,
@@ -4947,7 +5563,11 @@ window.RB_CONFIG = {
     "appliedDate": "2025-02-11",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2025/115/oj/eng",
     "appliedReg": "Reg. (EU) 2025/115",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2025-02-11",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2025/115/oj/eng",
+    "signalReg": "Reg. (EU) 2025/115",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4961,7 +5581,11 @@ window.RB_CONFIG = {
     "appliedDate": "2025-07-06",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2025/1164/oj/eng",
     "appliedReg": "Reg (EU) 2025/1164",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2025-07-06",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2025/1164/oj/eng",
+    "signalReg": "Reg (EU) 2025/1164",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4975,7 +5599,11 @@ window.RB_CONFIG = {
     "appliedDate": "2025-07-06",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2025/1164/oj/eng",
     "appliedReg": "Reg (EU) 2025/1164",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2025-07-06",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2025/1164/oj/eng",
+    "signalReg": "Reg (EU) 2025/1164",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -4989,7 +5617,11 @@ window.RB_CONFIG = {
     "appliedDate": "2022-05-10",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2021/1841/oj/eng",
     "appliedReg": "Reg. (EU) 2021/1841",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2022-05-10",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2021/1841/oj/eng",
+    "signalReg": "Reg. (EU) 2021/1841",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -5003,7 +5635,11 @@ window.RB_CONFIG = {
     "appliedDate": "2026-02-11",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2026/140/oj/eng",
     "appliedReg": "Commission Regulation (EU) 2026/140",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2026-02-11",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2026/140/oj/eng",
+    "signalReg": "Commission Regulation (EU) 2026/140",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -5017,7 +5653,11 @@ window.RB_CONFIG = {
     "appliedDate": "2024-06-11",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2024/1355/oj/eng",
     "appliedReg": "Reg. (EU) 2024/1355",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2024-06-11",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2024/1355/oj/eng",
+    "signalReg": "Reg. (EU) 2024/1355",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -5031,7 +5671,11 @@ window.RB_CONFIG = {
     "appliedDate": "2021-11-06",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2021/616/oj/eng",
     "appliedReg": "Reg.(EU) No 2021/616",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2021-11-06",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2021/616/oj/eng",
+    "signalReg": "Reg.(EU) No 2021/616",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -5045,7 +5689,11 @@ window.RB_CONFIG = {
     "appliedDate": "2024-10-28",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2024/2612/oj/eng",
     "appliedReg": "Commission Regulation (EU) 2024/2612",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2024-10-28",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2024/2612/oj/eng",
+    "signalReg": "Commission Regulation (EU) 2024/2612",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -5059,7 +5707,11 @@ window.RB_CONFIG = {
     "appliedDate": "2014-06-05",
     "appliedUrl": null,
     "appliedReg": "Reg. (EU) No 491/2014",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "—",
+    "signalUrl": null,
+    "signalReg": null,
+    "signalStatus": null
   },
   {
     "priority": null,
@@ -5073,7 +5725,11 @@ window.RB_CONFIG = {
     "appliedDate": "2026-05-05",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2026/840/oj/eng",
     "appliedReg": "Reg. (EU) 2026/840",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2026-05-05",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2026/840/oj/eng",
+    "signalReg": "Reg. (EU) 2026/840",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 81,
@@ -5087,7 +5743,11 @@ window.RB_CONFIG = {
     "appliedDate": "2026-05-05",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2026/840/oj/eng",
     "appliedReg": "Reg. (EU) 2026/840",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2026-05-05",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2026/840/oj/eng",
+    "signalReg": "Reg. (EU) 2026/840",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -5101,7 +5761,11 @@ window.RB_CONFIG = {
     "appliedDate": "2015-06-24",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2015/845/oj/eng",
     "appliedReg": "Reg. (EU) 2015/845",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2015-06-24",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2015/845/oj/eng",
+    "signalReg": "Reg. (EU) 2015/845",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -5115,7 +5779,11 @@ window.RB_CONFIG = {
     "appliedDate": "2020-11-13",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2020/1085/oj/eng",
     "appliedReg": "Reg. (EU) 2020/1085",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2020-11-13",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2020/1085/oj/eng",
+    "signalReg": "Reg. (EU) 2020/1085",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -5129,7 +5797,11 @@ window.RB_CONFIG = {
     "appliedDate": "2018-06-05",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2018/687/oj/eng",
     "appliedReg": "Reg. (EU) 2018/687",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2018-06-05",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2018/687/oj/eng",
+    "signalReg": "Reg. (EU) 2018/687",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -5143,7 +5815,11 @@ window.RB_CONFIG = {
     "appliedDate": "2024-12-11",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2024/1342/oj/eng",
     "appliedReg": "Reg. (EU) 2024/1342",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2024-12-11",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2024/1342/oj/eng",
+    "signalReg": "Reg. (EU) 2024/1342",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -5157,7 +5833,11 @@ window.RB_CONFIG = {
     "appliedDate": "2019-05-01",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2018/1516/oj/eng",
     "appliedReg": "Reg. (EU) 2018/1516",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2019-05-01",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2018/1516/oj/eng",
+    "signalReg": "Reg. (EU) 2018/1516",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -5171,7 +5851,11 @@ window.RB_CONFIG = {
     "appliedDate": "2008-09-01",
     "appliedUrl": null,
     "appliedReg": "Reg. (EC) No 149/2008",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "—",
+    "signalUrl": null,
+    "signalReg": null,
+    "signalStatus": null
   },
   {
     "priority": null,
@@ -5185,7 +5869,11 @@ window.RB_CONFIG = {
     "appliedDate": "2023-09-27",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2023/1719/oj/eng",
     "appliedReg": "Reg. (EU) 2023/1719",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2023-09-27",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2023/1719/oj/eng",
+    "signalReg": "Reg. (EU) 2023/1719",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -5199,7 +5887,11 @@ window.RB_CONFIG = {
     "appliedDate": "2016-02-11",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2016/67/oj/eng",
     "appliedReg": "Reg. (EU) 2016/67",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2016-02-11",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2016/67/oj/eng",
+    "signalReg": "Reg. (EU) 2016/67",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -5213,7 +5905,11 @@ window.RB_CONFIG = {
     "appliedDate": "2017-01-14",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2016/1002/oj/eng",
     "appliedReg": "Reg. (EU) 2016/1002",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2017-01-14",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2016/1002/oj/eng",
+    "signalReg": "Reg. (EU) 2016/1002",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -5227,7 +5923,11 @@ window.RB_CONFIG = {
     "appliedDate": "2023-04-13",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2023/679/oj/eng",
     "appliedReg": "Reg. (EU) 2023/679",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2023-04-13",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2023/679/oj/eng",
+    "signalReg": "Reg. (EU) 2023/679",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -5241,7 +5941,11 @@ window.RB_CONFIG = {
     "appliedDate": "2022-05-10",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2021/1841/oj/eng",
     "appliedReg": "Reg. (EU) 2021/1841",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2022-05-10",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2021/1841/oj/eng",
+    "signalReg": "Reg. (EU) 2021/1841",
+    "signalStatus": "Applicable"
   },
   {
     "priority": 1,
@@ -5255,7 +5959,11 @@ window.RB_CONFIG = {
     "appliedDate": "2022-01-27",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2021/1110/oj/eng",
     "appliedReg": "Reg. (EU) 2021/1110",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2022-01-27",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2021/1110/oj/eng",
+    "signalReg": "Reg. (EU) 2021/1110",
+    "signalStatus": "Applicable"
   },
   {
     "priority": null,
@@ -5269,7 +5977,11 @@ window.RB_CONFIG = {
     "appliedDate": "—",
     "appliedUrl": null,
     "appliedReg": "PLAN/2024/1305",
-    "appliedStatus": "Not yet applicable"
+    "appliedStatus": "Not yet applicable",
+    "signalDate": "2025-07-23",
+    "signalUrl": "https://open.efsa.europa.eu/questions/EFSA-Q-2025-00432",
+    "signalReg": "EFSA J (2024) – MRL review (Art.12)",
+    "signalStatus": "Not yet applicable"
   },
   {
     "priority": null,
@@ -5283,7 +5995,11 @@ window.RB_CONFIG = {
     "appliedDate": "2022-01-03",
     "appliedUrl": "https://eur-lex.europa.eu/eli/reg/2021/2202/oj/eng",
     "appliedReg": "Reg. (EU) 2021/2202",
-    "appliedStatus": "Applicable"
+    "appliedStatus": "Applicable",
+    "signalDate": "2022-01-03",
+    "signalUrl": "https://eur-lex.europa.eu/eli/reg/2021/2202/oj/eng",
+    "signalReg": "Reg. (EU) 2021/2202",
+    "signalStatus": "Applicable"
   }
 ]
         }
