@@ -2389,12 +2389,16 @@ window.RB_CONFIG = {
       "m_basis": "依据：",
       "m_selstatus": "请至少选择一个法规状态",
       "col_name_ph": "按名称筛选 (例 cypro、azoxy)…",
-      "col_change_ph": "按变更信号筛选 (例 拟变更、MRL修订)…",
+      "col_change_ph": "按变更信号筛选 (例 拟变更-Voted、MRL Applicable)…",
       "已批准": "已批准",
       "未批准": "未批准",
       "无批准记录": "无批准记录",
       "拟变更": "拟变更",
       "MRL修订": "MRL修订",
+      "拟变更-EFSA opinion": "拟变更-EFSA opinion",
+      "拟变更-Voted": "拟变更-Voted",
+      "拟变更-Published": "拟变更-Published",
+      "MRL Applicable": "MRL Applicable",
       "批准变动": "批准变动",
       "—": "—",
       "现行": "现行",
@@ -2573,12 +2577,16 @@ window.RB_CONFIG = {
       "m_basis": "Basis: ",
       "m_selstatus": "Please select at least one regulatory status",
       "col_name_ph": "Filter by name (e.g. cypro, azoxy)…",
-      "col_change_ph": "Filter by change signal (e.g. Proposed, MRL revised)…",
+      "col_change_ph": "Filter by change signal (e.g. Proposed-Voted, MRL Applicable)…",
       "已批准": "Approved",
       "未批准": "Not approved",
       "无批准记录": "No approval record",
       "拟变更": "Proposed",
       "MRL修订": "MRL revised",
+      "拟变更-EFSA opinion": "Proposed-EFSA opinion",
+      "拟变更-Voted": "Proposed-Voted",
+      "拟变更-Published": "Proposed-Published",
+      "MRL Applicable": "MRL Applicable",
       "批准变动": "Approval change",
       "—": "—",
       "现行": "Current",
@@ -6352,13 +6360,17 @@ window.RB_CONFIG = {
       return max;
     }
 
-    /* 拟变更 / MRL修订 标记 — 王总 2026-08-28 晚修订口径 v2:
-       - 拟变更 = 存在 Not yet applicable 法规列 (有草案就标, 不受 voted 日期窗口约束)
-                  变更信号发布日 = 该草案 voted (EFSA 投票公告当天)
-       - MRL修订 = 存在 Applicable 列且 applied ≥ cutoff(2026-01-01, 固定)
-                  变更信号发布日 = 该现行法规 applied (MRL 正式生效当天)
-       - 两者同时存在 → 仅标「拟变更」, 日期取 voted (拟变更优先)
-       - 都没有 → 「—」, 日期「—」
+    /* 变更标注 4 节点判定 — 王总 2026-08-28 晚 v3:
+       严格映射 EU MRL 流程 7 步, 仅显示该物质进展到的**最新**节点;
+       cut-off 固定 2026-01-01, 2025 及更早一律清成 '—'.
+       P4: MRL Applicable           ← step 7 (matrix Applicable 列 applied ≥ cutoff)
+           URL: EUR-Lex
+       P3: 拟变更-Published         ← step 6 (matrix Not yet applicable + regulation_number; 日期取 applied 作为 proxy)
+           URL: EUR-Lex
+       P2: 拟变更-Voted             ← step 5 (matrix Not yet applicable, voted ≥ cutoff)
+           URL: PAFF comitology (若有, 保留 row.signalUrl 的 comitology 链接)
+       P1: 拟变更-EFSA opinion       ← step 3 (row.signalUrl 命中 open.efsa.europa.eu 且 signalDate ≥ cutoff)
+           URL: EFSA Journal
        窗口下限固定 2026-01-01, 2025 全年不纳入, 不随日期滚动。 */
     function parseDMY(s){
       var m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s||'');
@@ -6371,37 +6383,122 @@ window.RB_CONFIG = {
       var y=dt.getFullYear(), m=('0'+(dt.getMonth()+1)).slice(-2), d=('0'+dt.getDate()).slice(-2);
       return y+'-'+m+'-'+d;
     }
-    /* 计算某物质的变更标签 + 变更信号发布日(YYYY-MM-DD) */
-    function computeChange(name){
+    /* Reg (EU) 2026/1314 / Reg. (EU) 2017/623 / Reg (EEC) .../... → EUR-Lex ELI URL */
+    function eurLexUrl(regNum){
+      if(!regNum) return null;
+      var m = /Reg\.?\s*\(?(EU|EC|EEC)\)?\s*(?:No\s*)?(\d{4})\s*\/\s*(\d+)/.exec(regNum);
+      if(!m) return null;
+      return 'https://eur-lex.europa.eu/eli/reg/'+m[2]+'/'+m[3]+'/oj/eng';
+    }
+    /* 节点结果对象 —— 直接对应 row.* 字段(变更信号 / 变更信号发布日 / 预计生效日 / 数据来源) */
+    function mkNode(change, changeDate, signalUrl, signalReg, appliedDate, appliedUrl, appliedReg){
+      return { change: change, changeDate: changeDate,
+               signalUrl: signalUrl, signalReg: signalReg,
+               appliedDate: appliedDate, appliedUrl: appliedUrl, appliedReg: appliedReg };
+    }
+    function emptyNode(){
+      return mkNode(DASH, DASH, null, '', DASH, null, '');
+    }
+
+    /* 计算某物质的最新节点(优先 P4 → P3 → P2 → P1)。
+       P1 来自 row.signal* (EFSA), 不能完全由 matrix 推导, 故传 row 进来。
+       Matrix cols 字段名 = reg (含法规号文本) + url + status + voted + applied。 */
+    function computeChange(name, row){
       var mrl = getM(name);
-      var hasProposed = false, proposedDate = null;   /* 拟变更: 取最大 voted */
-      var revisedDate  = null;                         /* MRL修订: 取最大 applied(≥cutoff) */
+      var apps = [], pubs = [], voteds = [];
       if(mrl && Array.isArray(mrl.cols)){
         mrl.cols.forEach(function(c){
-          if(c.status === 'Not yet applicable'){
-            hasProposed = true;
+          if(c.status === 'Applicable'){
+            var d = parseDMY(c.applied);
+            if(d && d >= cutoff) apps.push({col: c, applied: d});
+          } else if(c.status === 'Not yet applicable'){
+            /* P3: 法规已公布待适用 = 「Not yet applicable」且 c.reg 是真法规号
+               (排除 'PLAN/YYYY/NNN' 这种草案占位) */
+            if(c.reg && !/^PLAN\s*\//.test(c.reg)) pubs.push({col: c});
+            /* P2: voted = 有 voted 日期且 ≥ cutoff 的「Not yet applicable」 */
             var v = parseDMY(c.voted);
-            if(v && (proposedDate===null || v > proposedDate)) proposedDate = v;
-          } else if(c.status === 'Applicable'){
-            var a = parseDMY(c.applied);
-            if(a && a >= cutoff && (revisedDate===null || a > revisedDate)) revisedDate = a;
+            if(v && v >= cutoff) voteds.push({col: c, voted: v});
           }
         });
       }
-      if(hasProposed) return { label:'拟变更', date: fmtDMY(proposedDate) };
-      if(revisedDate)  return { label:'MRL修订', date: fmtDMY(revisedDate) };
-      return { label: DASH, date: DASH };
+
+      /* P4: MRL Applicable(显示现行 + 提示已生效)*/
+      if(apps.length){
+        apps.sort(function(a,b){ return b.applied - a.applied; });
+        var a = apps[0];
+        var reg = a.col.reg || '';
+        var url = a.col.url || eurLexUrl(reg) || null;
+        return mkNode('MRL Applicable',
+                      fmtDMY(a.applied),
+                      url, reg,
+                      fmtDMY(a.applied),
+                      url, reg);
+      }
+
+      /* P3: 拟变更-Published(已通过待适用) 日期 = applied proxy(用户指定)*/
+      if(pubs.length){
+        pubs.sort(function(a,b){
+          var da = parseDMY(a.col.applied) || new Date(0);
+          var db = parseDMY(b.col.applied) || new Date(0);
+          return db - da;
+        });
+        var p = pubs[0];
+        var reg3 = p.col.reg;
+        var d3   = parseDMY(p.col.applied);
+        var url3 = p.col.url || eurLexUrl(reg3) || null;
+        return mkNode('拟变更-Published',
+                      fmtDMY(d3),
+                      url3, reg3,
+                      fmtDMY(d3),
+                      url3, reg3);
+      }
+
+      /* P2: 拟变更-Voted(matrix 已通过 voted 日期筛过 cutoff)
+         来源 URL 优先保留 row.signalUrl (comitology D-number 文档),其次 matrix.col.url */
+      if(voteds.length){
+        voteds.sort(function(a,b){ return b.voted - a.voted; });
+        var v = voteds[0];
+        var reg2 = v.col.reg || '';
+        var url2 = (row && row.signalUrl && /comitology-register/.test(row.signalUrl))
+                   ? row.signalUrl
+                   : (v.col.url || eurLexUrl(reg2) || null);
+        return mkNode('拟变更-Voted',
+                      fmtDMY(v.voted),
+                      url2, reg2 || (row && row.signalReg) || '',
+                      DASH, null, '');
+      }
+
+      /* P1: 拟变更-EFSA opinion(只能从 row.signalUrl 命中 open.efsa.europa.eu 推出,
+         且 signalDate ≥ cutoff, 否则 2025 EFSA 节点清掉)*/
+      if(row && row.signalUrl && /open\.efsa\.europa\.eu/.test(row.signalUrl)){
+        var d = parseDMY(row.signalDate);
+        if(d && d >= cutoff){
+          return mkNode('拟变更-EFSA opinion',
+                        fmtDMY(d),
+                        row.signalUrl, row.signalReg || 'EFSA \u2197',
+                        DASH, null, '');
+        }
+      }
+
+      /* 无任何节点 或 全部节点均早于 cutoff(已被 2025 清理)*/
+      return emptyNode();
     }
 
-    /* 过滤 substances 表: 重算每行的变更标签(change) 与 变更信号发布日(changeDate) */
+    /* 过滤 substances 表: 重算每行的变更标注(对应 v3 4 节点)*/
     (window.RB_CONFIG.views||[]).forEach(function(view){
       (view.blocks||[]).forEach(function(b){
         if(b.type==='table' && b.id==='substances' && Array.isArray(b.rows)){
           b.rows.forEach(function(r){
             if(!r.name) return;
-            var ch = computeChange(r.name);
-            r.change = ch.label;
-            r.changeDate = ch.date;
+            var n = computeChange(r.name, r);
+            r.change      = n.change;
+            r.changeDate  = n.changeDate;
+            r.signalUrl   = n.signalUrl;
+            r.signalReg   = n.signalReg;
+            r.signalDate  = n.changeDate;     /* 同步: 公开遗留引用 */
+            r.appliedDate = n.appliedDate;
+            r.appliedUrl  = n.appliedUrl;
+            r.appliedReg  = n.appliedReg;
           });
         }
       });
