@@ -2498,11 +2498,13 @@ function toggleDingTalkPanel(){
   p.style.display = (p.style.display === 'none' || p.style.display === '') ? 'block' : 'none';
 }
 
-/* 与重点关注一致的排序: 拟变更置顶, 其次按 DGA 优先级升序 */
+/* 与重点关注一致的排序: 拟变更置顶, 其次按 DGA 优先级升序
+   ▼ 2026-08-30 用户要求: 重点关注区不再包含「无优先级」物质, 同步影响本函数被 DingTalk 推送复用时的数据范围. */
 function sortFocusRows(arr){
-  return arr.slice().sort(function(a,b){
-    var pa = (a.prio===null||a.prio==='')?Infinity:Number(a.prio);
-    var pb = (b.prio===null||b.prio==='')?Infinity:Number(b.prio);
+  return arr.filter(function(d){
+    return d && d.prio !== null && d.prio !== '' && d.prio !== undefined;
+  }).slice().sort(function(a,b){
+    var pa = Number(a.prio), pb = Number(b.prio);
     var aP = /拟变更/.test(a.chg)?0:1, bP = /拟变更/.test(b.chg)?0:1;
     if (aP !== bP) return aP - bP;
     return pa - pb;
@@ -2571,14 +2573,9 @@ function buildFocusBox(rowsData){
   var sec = el('section','sum-focus');
   sec.appendChild(el('h3','sum-focus-h3', TL('sum_focus_title')));
   sec.appendChild(el('p','sum-focus-intro', TL('sum_focus_intro')));
-  /* 排序: 拟变更优先, 其次按优先级数值升序(越小越紧急), 无优先级排末 */
-  var sorted = rowsData.slice().sort(function(a,b){
-    var pa = (a.prio===null||a.prio==='')?Infinity:Number(a.prio);
-    var pb = (b.prio===null||b.prio==='')?Infinity:Number(b.prio);
-    var aP = /拟变更/.test(a.chg)?0:1, bP = /拟变更/.test(b.chg)?0:1;
-    if (aP !== bP) return aP - bP;
-    return pa - pb;
-  });
+  /* 过滤 + 排序: 仅保留有优先级的物质; 拟变更置顶, 其次按优先级数值升序(越小越紧急).
+     ▼ 2026-08-30 用户要求: 去掉无优先级行(避免无 DGA 计划紧迫度提示的噪声). */
+  var sorted = sortFocusRows(rowsData);
   var list = el('div','sum-focus-list');
   sorted.forEach(function(r){
     var isProp = /拟变更/.test(r.chg);
