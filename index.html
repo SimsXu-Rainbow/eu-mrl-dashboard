@@ -720,6 +720,12 @@ td.mrl-cmp-green { background:rgba(63,147,106,.22); }
 .sum-ov-tbl td.eff-yes{color:#3F936A;font-weight:700;}
 .sum-ov-tbl td.eff-no{color:#b45309;font-weight:700;}
 .sum-ov-tbl td.eff-na{color:#9ca3af;font-weight:600;}
+.sum-ov-tbl td.chg-cell{white-space:nowrap;}
+.sum-ov-chg{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11.5px;font-weight:600;line-height:18px;}
+.sum-ov-chg.revised{background:#e3f1e8;color:#2f7a4f;border:1px solid #c4e0cf;}
+.sum-ov-chg.proposed{background:#fdebd6;color:#b45309;border:1px solid #f6cf9b;}
+.sum-ov-chg.approval{background:#e0e9f8;color:#1e4ea8;border:1px solid #bccae8;}
+.sum-ov-chg.none{background:#f1f3f5;color:#6b7280;border:1px solid #dfe3e7;}
 .sum-mod{border:1px solid #e3e6ea;border-radius:10px;margin-bottom:18px;overflow:hidden;background:#fff;}
 .sum-mod-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px;background:#f7f8fa;border-bottom:1px solid #e3e6ea;}
 .sum-prio{background:#1f2a44;color:#fff;font-size:12px;font-weight:700;padding:2px 9px;border-radius:11px;}
@@ -2273,12 +2279,33 @@ function renderSummaryModule(mod){
 function renderSummaryOverview(wrap, mods){
   var sec = el('section','sum-ov');
   sec.appendChild(el('h2','sum-ov-h2', TL('sum_ov_title')));
+  /* 跨引用: 从 RB_CONFIG.views[].blocks[](id='substances').rows 按 name 取「变更信号」与「变更信号发布日」，
+     使 summary 视图的这两列与活性物质清单完全一致(避免 maxVoted/maxdate 与四节点逻辑错位)。 */
+  var SUB_INFO = {};
+  try {
+    (RB_CONFIG.views || RB_CONFIG.sections || []).forEach(function(v0){
+      (v0.blocks || []).forEach(function(b0){
+        if (b0 && b0.id === 'substances' && b0.rows) {
+          b0.rows.forEach(function(r0){
+            if (r0 && r0.name) SUB_INFO[r0.name] = { change: r0.change, changeDate: r0.changeDate, changeUrl: r0.signalUrl || r0.appliedUrl || null, changeReg: r0.signalReg || r0.appliedReg || null };
+          });
+        }
+      });
+    });
+  } catch(e) {}
+  function chgClass(chg){
+    if (chg === 'MRL修订' || chg === 'MRL Applicable') return 'revised';
+    if (chg && (chg.indexOf('拟变更') === 0 || chg.indexOf('Proposed') === 0)) return 'proposed';
+    if (chg === '批准变动' || chg === 'Approval change') return 'approval';
+    return 'none';
+  }
   var tbl = el('table','sum-ov-tbl');
   var thead = el('thead');
   thead.innerHTML = '<tr>'+
     '<th>'+TL('sum_ov_col_ai')+'</th>'+
     '<th class="c">'+TL('sum_ov_col_prio')+'</th>'+
-    '<th class="c">'+TL('sum_ov_col_voted')+'</th>'+
+    '<th class="c">'+TL('sum_ov_col_chg')+'</th>'+
+    '<th class="c" title="'+TL('sum_ov_voted_tip')+'">'+TL('sum_ov_col_voted')+'</th>'+
     '<th class="c">'+TL('sum_ov_col_aeed')+'</th>'+
     '<th class="c" title="'+TL('sum_ov_eff_v_tip')+'">'+TL('sum_ov_col_eff_v')+'</th>'+
     '<th class="c">'+TL('sum_ov_col_up')+'</th>'+
@@ -2291,7 +2318,11 @@ function renderSummaryOverview(wrap, mods){
   var EFF_CUTOFF = '2026-08-30';
   mods.forEach(function(m){
     var prio = (m.prio!==null && m.prio!=='' && m.prio!==undefined) ? m.prio : '\u2014';
-    var voted = m.maxVoted ? m.maxVoted.replace(/-/g,'/') : '';
+    /* 变更信号 / 信号公布日: 优先引用活性物质清单(substances 表)的权威值 */
+    var subInfo = SUB_INFO[m.sub] || {};
+    var chg = (subInfo.change && subInfo.change !== '\u2014') ? subInfo.change : '\u2014';
+    var sigRaw = (subInfo.changeDate && subInfo.changeDate !== '\u2014') ? subInfo.changeDate : '';
+    var voted = sigRaw ? sigRaw.replace(/-/g,'/') : '\u2014';
     /* 预计生效日期: 取该物质全部 change 行 date 字段最大值 (YYYY-MM-DD -> YYYY/MM/DD) */
     var aeed = '';
     var aeedRaw = '';
@@ -2323,10 +2354,10 @@ function renderSummaryOverview(wrap, mods){
       effV = TL('sum_ov_eff_no'); effCls = 'eff-no'; /* 有变更但尚无 applied = 未生效 */
     }
     if (aeed === '') aeed = '\u2014';
-    if (voted === '') voted = '\u2014';
     var tr = el('tr');
     tr.innerHTML = '<td class="ai">'+sumEsc(m.sub)+'</td>'+
       '<td class="c">'+sumEsc(prio)+'</td>'+
+      '<td class="c chg-cell"><span class="sum-ov-chg '+chgClass(chg)+'">'+sumEsc(chg)+'</span></td>'+
       '<td class="c mono">'+voted+'</td>'+
       '<td class="c mono">'+aeed+'</td>'+
       '<td class="c '+effCls+'" title="'+TL('sum_ov_eff_v_tip')+'">'+effV+'</td>'+
@@ -2508,6 +2539,8 @@ window.RB_CONFIG = {
       "sum_ov_title": "变更概要",
       "sum_ov_col_ai": "活性物质",
       "sum_ov_col_prio": "优先级",
+      "sum_ov_col_chg": "变更信号",
+      "sum_ov_voted_tip": "信号公布日 = 活性物质清单中该物质的「变更信号发布日」（与清单视图口径一致：MRL修订取法规适用日，拟变更取 PAFF 投票日）。",
       "sum_ov_col_voted": "信号公布日",
       "sum_ov_col_aeed": "预计生效日期",
       "sum_ov_col_eff_v": "是否已生效（截至 2026-08-30）",
@@ -2704,6 +2737,8 @@ window.RB_CONFIG = {
       "sum_ov_title": "Change Overview",
       "sum_ov_col_ai": "Active Substance",
       "sum_ov_col_prio": "Priority",
+      "sum_ov_col_chg": "Change signal",
+      "sum_ov_voted_tip": "Signal date = the substance's \"change signal publication date\" in the substances list (consistent with the list view: MRL-revised uses regulation application date, proposed uses PAFF vote date).",
       "sum_ov_col_voted": "Signal Date",
       "sum_ov_col_aeed": "Expected effective date",
       "sum_ov_col_eff_v": "Effective as of 2026-08-30",
