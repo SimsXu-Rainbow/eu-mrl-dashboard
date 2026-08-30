@@ -739,6 +739,20 @@ td.mrl-cmp-green { background:rgba(63,147,106,.22); }
 .sum-focus-badge{display:inline-block;font-size:11px;font-weight:700;color:#fff;background:#1f2a44;border-radius:9px;padding:1px 8px;margin-right:8px;vertical-align:middle;}
 .sum-focus-name{font-weight:700;color:#1f2a44;margin-right:6px;}
 .sum-focus-meta{color:#6b7280;}
+/* ▼ 2026-08-30 推送钉钉 工具栏 + 设置面板 */
+.sum-push-bar{display:flex;justify-content:flex-end;margin:-2px 0 12px;}
+.sum-push-btn{background:#1f2a44;color:#fff;border:none;border-radius:7px;padding:7px 15px;font-size:12.5px;font-weight:600;cursor:pointer;}
+.sum-push-btn:hover{background:#2a3a5e;}
+.sum-dt-panel{margin:0 0 16px;background:#f7f8fa;border:1px solid #e3e6ea;border-radius:9px;padding:14px 16px;}
+.sum-dt-panel-inner{display:flex;flex-direction:column;gap:10px;}
+.sum-dt-row{display:flex;flex-direction:column;gap:4px;}
+.sum-dt-row label{font-size:12px;color:#1f2a44;font-weight:600;}
+.sum-dt-row input{font-size:12.5px;padding:7px 10px;border:1px solid #cfd6dd;border-radius:6px;width:100%;box-sizing:border-box;font-family:Consolas,Menlo,monospace;}
+.sum-dt-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.sum-dt-send{background:#1f2a44;color:#fff;border:none;border-radius:7px;padding:7px 15px;font-size:12.5px;font-weight:600;cursor:pointer;}
+.sum-dt-cancel{background:#fff;color:#6b7280;border:1px solid #cfd6dd;border-radius:7px;padding:7px 15px;font-size:12.5px;cursor:pointer;}
+.sum-dt-status{font-size:12px;}
+.sum-dt-note{font-size:11.5px;color:#6b7280;line-height:1.5;}
 .sum-mod{border:1px solid #e3e6ea;border-radius:10px;margin-bottom:18px;overflow:hidden;background:#fff;}
 .sum-mod-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px;background:#f7f8fa;border-bottom:1px solid #e3e6ea;}
 .sum-prio{background:#1f2a44;color:#fff;font-size:12px;font-weight:700;padding:2px 9px;border-radius:11px;}
@@ -2300,6 +2314,38 @@ function renderSummaryModule(mod){
 function renderSummaryOverview(wrap, mods){
   var sec = el('section','sum-ov');
   sec.appendChild(el('h2','sum-ov-h2', TL('sum_ov_title')));
+  /* ▼ 2026-08-30 推送钉钉: 工具栏按钮 + 设置面板 (Webhook 方式, 精确指定目标群) */
+  var pushBar = el('div','sum-push-bar');
+  var pushBtn = el('button','sum-push-btn', TL('sum_push_btn'));
+  pushBtn.type = 'button';
+  pushBtn.onclick = function(){ toggleDingTalkPanel(); };
+  pushBar.appendChild(pushBtn);
+  sec.appendChild(pushBar);
+  var panel = el('div','sum-dt-panel');
+  panel.id = 'sum-dt-panel';
+  panel.style.display = 'none';
+  panel.innerHTML = '<div class="sum-dt-panel-inner">'+
+    '<div class="sum-dt-row"><label>'+TL('sum_push_wh')+'</label><input id="dt-webhook" type="text" placeholder="https://oapi.dingtalk.com/robot/send?access_token=..." autocomplete="off" /></div>'+
+    '<div class="sum-dt-row"><label>'+TL('sum_push_secret')+'</label><input id="dt-secret" type="text" placeholder="(可选) 机器人安全设置中的加签密钥" autocomplete="off" /></div>'+
+    '<div class="sum-dt-actions"><button id="dt-send" class="sum-dt-send" type="button">'+TL('sum_push_send')+'</button>'+
+    '<button id="dt-cancel" class="sum-dt-cancel" type="button">'+TL('sum_push_cancel')+'</button>'+
+    '<span id="dt-status" class="sum-dt-status"></span></div>'+
+    '<div class="sum-dt-note">'+TL('sum_push_note')+'</div>'+
+    '</div>';
+  sec.appendChild(panel);
+  /* 预填 localStorage 中已保存的 Webhook/Secret (panel 此时尚未挂入文档, 用 panel.querySelector) */
+  try {
+    var _wh = localStorage.getItem('dt_webhook') || '';
+    var _sec = localStorage.getItem('dt_secret') || '';
+    var _whEl = panel.querySelector('#dt-webhook');
+    var _secEl = panel.querySelector('#dt-secret');
+    if (_whEl) _whEl.value = _wh;
+    if (_secEl) _secEl.value = _sec;
+  } catch(e) {}
+  var sendBtn = panel.querySelector('#dt-send');
+  var cancelBtn = panel.querySelector('#dt-cancel');
+  if (sendBtn) sendBtn.onclick = function(){ pushSummaryToDingTalk(); };
+  if (cancelBtn) cancelBtn.onclick = function(){ var p=document.getElementById('sum-dt-panel'); if(p) p.style.display='none'; };
   /* 跨引用: 从 RB_CONFIG.views[].blocks[](id='substances').rows 按 name 取「变更信号」「变更信号发布日」「优先级」，
      使 summary 视图的这几列与活性物质清单完全一致(避免 maxVoted/maxdate 与四节点逻辑错位)。 */
   var SUB_INFO = {};
@@ -2441,6 +2487,83 @@ function renderSummaryOverview(wrap, mods){
   tbl.appendChild(tb);
   sec.appendChild(tbl);
   wrap.appendChild(sec);
+  /* 暴露给「推送钉钉」使用 (全部 24 项, 推送时按相同优先级排序) */
+  window.__SUM_ROWS__ = rowsData;
+}
+
+/* ▼ 2026-08-30 推送钉钉: 面板开关 + Markdown 推送 (群机器人 Webhook 方式) */
+function toggleDingTalkPanel(){
+  var p = document.getElementById('sum-dt-panel');
+  if (!p) return;
+  p.style.display = (p.style.display === 'none' || p.style.display === '') ? 'block' : 'none';
+}
+
+/* 与重点关注一致的排序: 拟变更置顶, 其次按 DGA 优先级升序 */
+function sortFocusRows(arr){
+  return arr.slice().sort(function(a,b){
+    var pa = (a.prio===null||a.prio==='')?Infinity:Number(a.prio);
+    var pb = (b.prio===null||b.prio==='')?Infinity:Number(b.prio);
+    var aP = /拟变更/.test(a.chg)?0:1, bP = /拟变更/.test(b.chg)?0:1;
+    if (aP !== bP) return aP - bP;
+    return pa - pb;
+  });
+}
+
+function pushSummaryToDingTalk(){
+  var whEl = document.getElementById('dt-webhook');
+  var secEl = document.getElementById('dt-secret');
+  var statusEl = document.getElementById('dt-status');
+  if (!whEl || !statusEl) return;
+  var wh = whEl.value.trim();
+  var sec = secEl ? secEl.value.trim() : '';
+  if (!wh) { statusEl.textContent = TL('sum_push_noinput'); statusEl.style.color = '#b45309'; return; }
+  /* 持久化 (便于下次预填) */
+  try { localStorage.setItem('dt_webhook', wh); if (sec) localStorage.setItem('dt_secret', sec); } catch(e) {}
+  var rows = sortFocusRows(window.__SUM_ROWS__ || []);
+  var lines = ['# EU MRL 变更 · 重点关注（截至 2026-08-30）','> 按 DGA 优先级升序，拟变更置顶。共 ' + rows.length + ' 项。',''];
+  lines.push('| 优先级 | 活性物质 | 变更信号 | 状态 | 信号公布日 | 预计生效日 | 升降 |','| --- | --- | --- | --- | --- | --- | --- |');
+  rows.forEach(function(r){
+    var dir = [];
+    if (r.nUp) dir.push('\u25b2'+r.nUp);
+    if (r.nDown) dir.push('\u25bc'+r.nDown);
+    if (r.nNew) dir.push('\u25cf'+r.nNew);
+    var pr = (r.prio===null||r.prio==='') ? '—' : r.prio;
+    lines.push('| ' + pr + ' | **' + r.sub + '** | ' + r.chg + ' | ' + r.effV + ' | ' + r.voted + ' | ' + r.aeed + ' | ' + (dir.length?dir.join(' '):'—') + ' |');
+  });
+  var text = lines.join('\n');
+  var url = wh;
+  /* 加签: HMAC-SHA256(timestamp + '\n' + secret) base64, 需 HTTPS 环境(crypto.subtle) */
+  var doPost = function(finalUrl){
+    fetch(finalUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ msgtype: 'markdown', markdown: { title: 'EU MRL 变更重点关注', text: text } })
+    })
+    .then(function(res){ return res.json(); })
+    .then(function(d){
+      if (d && d.errcode === 0) { statusEl.textContent = TL('sum_push_ok'); statusEl.style.color = '#3F936A'; }
+      else { statusEl.textContent = TL('sum_push_fail') + ': ' + (d && d.errmsg ? d.errmsg : JSON.stringify(d)); statusEl.style.color = '#b45309'; }
+    })
+    .catch(function(e){ statusEl.textContent = TL('sum_push_fail') + ': ' + e.message; statusEl.style.color = '#b45309'; });
+  };
+  if (sec) {
+    if (window.crypto && window.crypto.subtle) {
+      var ts = Date.now();
+      var enc = new TextEncoder();
+      window.crypto.subtle.importKey('raw', enc.encode(sec), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+        .then(function(key){ return window.crypto.subtle.sign('HMAC', key, enc.encode(ts + '\n' + sec)); })
+        .then(function(sig){
+          var b64 = btoa(String.fromCharCode.apply(null, new Uint8Array(sig)));
+          var sep = url.indexOf('?') >= 0 ? '&' : '?';
+          doPost(url + sep + 'timestamp=' + ts + '&sign=' + encodeURIComponent(b64));
+        })
+        .catch(function(e){ statusEl.textContent = TL('sum_push_fail') + ': ' + e.message; statusEl.style.color = '#b45309'; });
+    } else {
+      statusEl.textContent = TL('sum_push_secwarn'); statusEl.style.color = '#b45309';
+    }
+  } else {
+    doPost(url);
+  }
 }
 
 /* 2026-08-30: 变更汇总「重点关注」文字版概要 — 按 DGA 优先级升序(数值越小越紧急), 拟变更置顶高亮 */
@@ -2662,6 +2785,16 @@ window.RB_CONFIG = {
       "sum_focus_prio": "优先级",
       "sum_focus_eff": "状态",
       "sum_focus_intro": "按 DGA 计划优先级升序（数值越小越紧急），标注变更信号、生效状态与升降情况；含「拟变更」者排前并高亮。",
+      "sum_push_btn": "推送钉钉",
+      "sum_push_wh": "群机器人 Webhook",
+      "sum_push_secret": "加签 Secret（可选）",
+      "sum_push_send": "推送「重点关注」",
+      "sum_push_cancel": "取消",
+      "sum_push_note": "在目标钉钉群「智能群助手 → 添加机器人 → 自定义」获取 Webhook；开启「加签」则填 Secret。消息以 Markdown 推送到该群。Webhook 即代表目标群。",
+      "sum_push_ok": "推送成功 ✓",
+      "sum_push_fail": "推送失败",
+      "sum_push_noinput": "请填写 Webhook 地址",
+      "sum_push_secwarn": "加签需在 HTTPS 环境（在线站）下使用；本地打开请关闭加签或改用在线站。",
 
       "src_lead_eyebrow": "Data Provenance · 信息来源与对应",
       "src_lead_text": "本页说明看板各字段的数据来源、官方出处，以及每条信息在哪个网站能直接复核。无需逐个 AI 查证，概要性了解即可。",
@@ -2865,6 +2998,16 @@ window.RB_CONFIG = {
       "sum_focus_prio": "Priority",
       "sum_focus_eff": "Status",
       "sum_focus_intro": "Sorted by DGA Working-Plan priority (lower = more urgent); shows change signal, effectiveness, and up/down counts. Proposed items are highlighted and listed first.",
+      "sum_push_btn": "Push to DingTalk",
+      "sum_push_wh": "Group robot Webhook",
+      "sum_push_secret": "Sign secret (optional)",
+      "sum_push_send": "Push Key Focus",
+      "sum_push_cancel": "Cancel",
+      "sum_push_note": "Get the Webhook from the target group (Smart Group Assistant → Add Robot → Custom). Enable signing to fill the Secret. Message is pushed as Markdown to that group. The Webhook identifies the target group.",
+      "sum_push_ok": "Pushed ✓",
+      "sum_push_fail": "Push failed",
+      "sum_push_noinput": "Please fill the Webhook URL",
+      "sum_push_secwarn": "Signing requires an HTTPS context (the online site); for local files disable signing or use the online site.",
 
       "src_lead_eyebrow": "Data Provenance · Sources & Mapping",
       "src_lead_text": "This page lists the dashboard's data sources and where each field can be re-verified on the official sites. A high-level reference — not tied to any specific active ingredient.",
