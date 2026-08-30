@@ -1738,16 +1738,18 @@ function renderTableBody(tid) {
         td.textContent = L(v);
       } else if (c.type === 'i18n') {
         if (c.key === 'change' && v && v !== '—') {
-          /* 变更信号渲染为 chip: 拟变更(橙) / MRL修订(绿) / 批准变动(蓝); 双标签并存 */
+          /* 变更信号渲染为 chip: MRL修订/Applicable(绿) / 拟变更(橙) / 批准变动(蓝); 双/多标签并存(用 · 分隔).
+             v3+ 标签如 "MRL Applicable" / "拟变更-Published" / "拟变更-Voted" 用正则归类颜色. */
           String(v).split(' · ').forEach(function (p) {
             p = p.trim();
             var cc = 'rbv-cc-other';
-            if (p === '拟变更') cc = 'rbv-cc-proposed';
-            else if (p === 'MRL修订') cc = 'rbv-cc-revised';
-            else if (p === '批准变动') cc = 'rbv-cc-approval';
+            if (/MRL修订|MRL Applicable/i.test(p)) cc = 'rbv-cc-revised';
+            else if (/拟变更/.test(p)) cc = 'rbv-cc-proposed';
+            else if (/批准变动/.test(p)) cc = 'rbv-cc-approval';
             var chip = el('span', 'rbv-change-chip ' + cc);
             chip.textContent = TL(p);
             td.appendChild(chip);
+            td.appendChild(document.createTextNode(' '));
           });
         } else if (v && String(v).indexOf(' · ') >= 0) {
           /* 其他 i18n 列(如 status)仍按原逻辑拆开翻译 */
@@ -2354,10 +2356,20 @@ function renderSummaryOverview(wrap, mods){
       effV = TL('sum_ov_eff_no'); effCls = 'eff-no'; /* 有变更但尚无 applied = 未生效 */
     }
     if (aeed === '') aeed = '\u2014';
+    /* 变更信号 chip: 同一物质多条信号用 ' · ' 连接, 渲染为多个彩色 chip */
+    var chgHtml = '';
+    if (chg && chg !== '\u2014') {
+      chgHtml = chg.split(' \u00b7 ').map(function(p){
+        p = p.trim();
+        return '<span class="sum-ov-chg '+chgClass(p)+'">'+sumEsc(p)+'</span>';
+      }).join(' ');
+    } else {
+      chgHtml = '<span class="sum-ov-chg none">\u2014</span>';
+    }
     var tr = el('tr');
     tr.innerHTML = '<td class="ai">'+sumEsc(m.sub)+'</td>'+
       '<td class="c">'+sumEsc(prio)+'</td>'+
-      '<td class="c chg-cell"><span class="sum-ov-chg '+chgClass(chg)+'">'+sumEsc(chg)+'</span></td>'+
+      '<td class="c chg-cell">'+chgHtml+'</td>'+
       '<td class="c mono">'+voted+'</td>'+
       '<td class="c mono">'+aeed+'</td>'+
       '<td class="c '+effCls+'" title="'+TL('sum_ov_eff_v_tip')+'">'+effV+'</td>'+
@@ -6524,101 +6536,92 @@ window.RB_CONFIG = {
       return mkNode(DASH, DASH, null, '', DASH, null, '');
     }
 
-    /* 计算某物质的最新节点(优先 P4 → P3 → P2 → P1)。
-       P1 来自 row.signal* (EFSA), 不能完全由 matrix 推导, 故传 row 进来。
-       Matrix cols 字段名 = reg (含法规号文本) + url + status + voted + applied。 */
+    /* v4 (2026-08-30): 同一物质可同时存在多条活动信号(如 P4 现行 + P2 拟变更-Voted).
+       返回全部活动信号; r.change = labels 用 '\u00b7' 连接;
+       r.changeDate = 各信号日期的最大值(用户要求 "最新信号的日期");
+       signalUrl/Reg/Official + appliedDate/Url/Reg 取最高优先级节点. */
     function computeChange(name, row){
       var mrl = getM(name);
-      var apps = [], pubs = [], voteds = [];
+      var p4 = null;       /* 最新 Applicable (applied >= cutoff) */
+      var props = [];      /* Not yet applicable 且 voted >= cutoff */
       if(mrl && Array.isArray(mrl.cols)){
         mrl.cols.forEach(function(c){
           if(c.status === 'Applicable'){
             var d = parseDMY(c.applied);
-            if(d && d >= cutoff) apps.push({col: c, applied: d});
+            if(d && d >= cutoff){
+              if(!p4 || d > p4.applied) p4 = {col:c, applied:d};
+            }
           } else if(c.status === 'Not yet applicable'){
-            /* P3: 法规已公布待适用 = 「Not yet applicable」且 c.reg 是真法规号
-               (排除 'PLAN/YYYY/NNN' 这种草案占位) */
-            if(c.reg && !/^PLAN\s*\//.test(c.reg)) pubs.push({col: c});
-            /* P2: voted = 有 voted 日期且 ≥ cutoff 的「Not yet applicable」 */
             var v = parseDMY(c.voted);
-            if(v && v >= cutoff) voteds.push({col: c, voted: v});
+            if(v && v >= cutoff){
+              props.push({col:c, voted:v, applied:parseDMY(c.applied),
+                          isRealReg: !!(c.reg && !/^PLAN\s*\//.test(c.reg))});
+            }
           }
         });
       }
 
-      /* P4: MRL Applicable(显示现行 + 提示已生效)*/
-      if(apps.length){
-        apps.sort(function(a,b){ return b.applied - a.applied; });
-        var a = apps[0];
-        var reg = a.col.reg || '';
-        var url = a.col.url || eurLexUrl(reg) || null;
-        return mkNode('MRL Applicable',
-                      fmtDMY(a.applied),
-                      url, reg,
-                      fmtDMY(a.applied),
-                      url, reg);
-      }
+      var signals = []; /* {label, sigDt, sigUrl, sigReg, appDt, appUrl, appReg, official} */
 
-      /* P3: 拟变更-Published(已通过待适用)
-         信号发布日 = voted (作 published 的 proxy, 矩阵无单独的 published 字段)
-         预计生效日 = applied
-         两列分开: 信号发布日(法规已通过) vs 预计生效日(法规待适用) */
-      if(pubs.length){
-        pubs.sort(function(a,b){
-          var da = parseDMY(a.col.applied) || new Date(0);
-          var db = parseDMY(b.col.applied) || new Date(0);
-          return db - da;
-        });
-        var p = pubs[0];
-        var reg3 = p.col.reg;
-        var dApplied3 = parseDMY(p.col.applied);
-        var dVoted3   = parseDMY(p.col.voted);
-        var dSignal3  = dVoted3 || dApplied3;  /* fallback: 若无 voted 则退到 applied */
-        var url3 = p.col.url || eurLexUrl(reg3) || null;
-        return mkNode('拟变更-Published',
-                      fmtDMY(dSignal3),
-                      url3, reg3,
-                      fmtDMY(dApplied3),
-                      url3, reg3);
+      /* P4: MRL Applicable */
+      if(p4){
+        var reg4 = p4.col.reg || '';
+        var url4 = p4.col.url || eurLexUrl(reg4) || null;
+        signals.push({label:'MRL Applicable', sigDt:p4.applied,
+                      sigUrl:url4, sigReg:reg4,
+                      appDt:p4.applied, appUrl:url4, appReg:reg4, official:true});
       }
-
-      /* P2: 拟变更-Voted(matrix 已通过 voted 日期筛过 cutoff)
-         来源 URL 优先保留 row.signalUrl (comitology D-number 文档),
-         其次二手来源 SECONDARY_SRC(AGRINFO, 官方 comitology 不可访问时),
-         再次 matrix.col.url */
-      if(voteds.length){
-        voteds.sort(function(a,b){ return b.voted - a.voted; });
-        var v = voteds[0];
-        var reg2 = v.col.reg || '';
-        var url2, official2 = true;
-        if(row && row.signalUrl && /comitology-register/.test(row.signalUrl)){
-          url2 = row.signalUrl;
-        } else if(SECONDARY_SRC && SECONDARY_SRC[name]){
-          url2 = SECONDARY_SRC[name];
-          official2 = false;
+      /* P3/P2: 拟变更-Published(real reg) / 拟变更-Voted(PLAN 或缺 reg) */
+      props.forEach(function(p){
+        var reg = p.col.reg || '';
+        var url = p.col.url || eurLexUrl(reg) || null;
+        if(p.isRealReg){
+          signals.push({label:'拟变更-Published', sigDt:p.voted,
+                        sigUrl:url, sigReg:reg,
+                        appDt:p.applied, appUrl:url, appReg:reg, official:true});
         } else {
-          url2 = v.col.url || eurLexUrl(reg2) || null;
+          var u2, off = true;
+          if(row && row.signalUrl && /comitology-register/.test(row.signalUrl)) u2 = row.signalUrl;
+          else if(SECONDARY_SRC && SECONDARY_SRC[name]){ u2 = SECONDARY_SRC[name]; off = false; }
+          else u2 = p.col.url || eurLexUrl(reg) || null;
+          signals.push({label:'拟变更-Voted', sigDt:p.voted,
+                        sigUrl:u2, sigReg:reg || (row && row.signalReg) || '',
+                        appDt:null, appUrl:null, appReg:'', official:off});
         }
-        return mkNode('拟变更-Voted',
-                      fmtDMY(v.voted),
-                      url2, reg2 || (row && row.signalReg) || '',
-                      DASH, null, '', official2);
+      });
+      /* P1 fallback: EFSA opinion(矩阵无信号但 row.signalUrl 命中 EFSA) */
+      if(!signals.length && row && row.signalUrl && /open\.efsa\.europa\.eu/.test(row.signalUrl)){
+        var d1 = parseDMY(row.signalDate);
+        if(d1 && d1 >= cutoff){
+          signals.push({label:'拟变更-EFSA opinion', sigDt:d1,
+                        sigUrl:row.signalUrl, sigReg:row.signalReg || 'EFSA \u2197',
+                        appDt:null, appUrl:null, appReg:'', official:true});
+        }
       }
 
-      /* P1: 拟变更-EFSA opinion(只能从 row.signalUrl 命中 open.efsa.europa.eu 推出,
-         且 signalDate ≥ cutoff, 否则 2025 EFSA 节点清掉)*/
-      if(row && row.signalUrl && /open\.efsa\.europa\.eu/.test(row.signalUrl)){
-        var d = parseDMY(row.signalDate);
-        if(d && d >= cutoff){
-          return mkNode('拟变更-EFSA opinion',
-                        fmtDMY(d),
-                        row.signalUrl, row.signalReg || 'EFSA \u2197',
-                        DASH, null, '');
-        }
+      if(!signals.length) return emptyNode();
+
+      /* 按优先级排序: P4 > P3 > P2 > P1 */
+      var prio = {'MRL Applicable':0, '拟变更-Published':1, '拟变更-Voted':2, '拟变更-EFSA opinion':3};
+      signals.sort(function(a,b){ return (prio[a.label]||9) - (prio[b.label]||9); });
+      var primary = signals[0];
+
+      /* changeDate = 最新信号日期(用户 2026-08-30 要求) */
+      var maxDt = signals[0].sigDt;
+      for(var k = 1; k < signals.length; k++){
+        if(signals[k].sigDt && (!maxDt || signals[k].sigDt > maxDt)) maxDt = signals[k].sigDt;
       }
 
-      /* 无任何节点 或 全部节点均早于 cutoff(已被 2025 清理)*/
-      return emptyNode();
+      return {
+        change: signals.map(function(s){ return s.label; }).join(' \u00b7 '),
+        changeDate: fmtDMY(maxDt),
+        signalUrl: primary.sigUrl,
+        signalReg: primary.sigReg,
+        appliedDate: primary.appDt ? fmtDMY(primary.appDt) : DASH,
+        appliedUrl: primary.appUrl,
+        appliedReg: primary.appReg,
+        signalOfficial: primary.official !== false
+      };
     }
 
     /* 过滤 substances 表: 重算每行的变更标注(对应 v3 4 节点)*/
