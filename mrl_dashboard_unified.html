@@ -2369,18 +2369,23 @@ function renderSummaryOverview(wrap, mods){
     }
     /* 截止 8/30 是否已生效 —— 语义: 变更信号发布日 == 现行 MRL 生效日
        判定规则: 任一 change.kind === 'revised' 且其 date(已 applied 修订法规的生效日) <= 截止日 → 已生效;
-                  仅 kind ∈ {proposed, new, bars} 的 MRL 变更尚未 applied → 未生效. */
+                  仅 kind ∈ {proposed, new, bars} 的 MRL 变更尚未 applied → 未生效.
+       ▼ 2026-08-30 用户要求: 若标签含「拟变更」(Voted/Published), 表明新 MRL 即将替代现行 MRL, 即使存在已生效的 MRL Applicable 也应判为「未生效」。 */
     var effV = '';
     var effCls = 'eff-na';
     var revMaxDate = '';
     var hasRevised = false;
     var hasAnyChange = m.changes && m.changes.length > 0;
+    var isProposed = /拟变更/.test(chg);
     if (hasAnyChange) {
       m.changes.forEach(function(c){
         if (c.kind === 'revised' && c.date && c.date > revMaxDate) { revMaxDate = c.date; hasRevised = true; }
       });
     }
-    if (!hasAnyChange) {
+    if (isProposed) {
+      /* 拟变更存在: 等待新 MRL 替代现行, 整体状态视为未生效 */
+      effV = TL('sum_ov_eff_no'); effCls = 'eff-no';
+    } else if (!hasAnyChange) {
       effV = '\u2014'; effCls = 'eff-na';          /* 真实无数据:灰 em-dash */
     } else if (hasRevised && revMaxDate <= EFF_CUTOFF) {
       effV = TL('sum_ov_eff_yes'); effCls = 'eff-yes';
