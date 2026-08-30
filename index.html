@@ -180,12 +180,14 @@ button { font-family: inherit; }
    所有列始终完整可见。窄屏下列宽自适应收缩、文本换行，不丢失列结构。 */
 .rbv-tablewrap:not(.rbv-slim) > .rbv-scroll { overflow: visible; }
 .rbv-thead { display: grid; background: #E7F3EF; border-bottom: 1px solid var(--rb-border); position: sticky; top: 70px; z-index: 50; box-shadow: 0 2px 4px rgba(0,52,49,.04); }
-.rbv-th { background: transparent; border: none; text-align: left; padding: 13px 11px; color: var(--rb-solid-green); font-weight: 700; font-size: 11.5px; letter-spacing: .15px; cursor: pointer; white-space: nowrap; user-select: none; overflow: hidden; text-overflow: ellipsis; }
-/* EN 模式下列头文本较长("Current MRL effective date"、"Active substance approval status" …),
-   单行截断听不清。允许换行 + 行高收紧,表头会变高 1 行,把过滤栏 sticky 顶位下推到 130px。 */
+.rbv-th { background: transparent; border: none; text-align: left; padding: 11px 11px; color: var(--rb-solid-green); font-weight: 700; font-size: 11.5px; letter-spacing: .15px; cursor: pointer; white-space: normal; line-height: 1.3; word-break: break-word; overflow-wrap: anywhere; user-select: none; }
+/* 中/英表头均允许换行:中文原 nowrap 会被省略号截断(如"现行 MRL 生效日"),
+   现统一 normal + 行高收紧,长表头自然折行;表头变高 1 行,过滤栏 sticky 顶位下推到 130px。 */
 :lang(en) .rbv-th { white-space: normal; line-height: 1.25; padding-top: 10px; padding-bottom: 10px; word-break: break-word; overflow-wrap: anywhere; }
 .rbv-th:hover { background: #DDEEE7; }
 .rbv-th .icon { font-size: 9px; }
+.rbv-th-hint { display: block; margin-top: 4px; font-size: 10px; font-weight: 500; letter-spacing: .1px; color: var(--rb-text-light, #6A8480); text-align: left; white-space: nowrap; user-select: none; }
+:lang(en) .rbv-th-hint { font-size: 9.5px; }
 .rbv-row { display: grid; align-items: center; border-bottom: 1px solid #EEF3F1; }
 .rbv-row:last-child { border-bottom: none; }
 .rbv-row:hover { background: var(--rb-mint); }
@@ -1529,10 +1531,16 @@ function renderTable(container, blk) {
   thead.style.minWidth = minW;
   cols.forEach(function (c, i) {
     var th = el('button', 'rbv-th');
+    if (c.key === 'name') th.classList.add('rbv-th-name');
     th.appendChild(document.createTextNode(TL(c.label) + ' '));
     var ic = el('span', 'icon');
     ic.id = 'rbv-sort-' + domTid + '-' + i;
     th.appendChild(ic);
+    if (c.key === 'name') {
+      var hint = el('span', 'rbv-th-hint');
+      hint.textContent = TL('col_name_hint');
+      th.appendChild(hint);
+    }
     /* 融合②带列注的表:被指的那一列表头淡底 + 挂一个圆记号,文字在表底注解区。
        列注是静态的(列不会被搜没),所以编号在这里就定死,行注从它后面接着排。 */
     if (c.note) {
@@ -2462,6 +2470,7 @@ window.RB_CONFIG = {
       "sec_list": "活性物质清单（176）",
       "sec_list_n": "点击表头排序、输入关键词搜索、按列筛选；拟变更 MRL 须以 EUR-Lex 与 EFSA Journal 复核。",
       "th_name": "活性物质（英文）",
+      "col_name_hint": "点击展开细节 ▾",
       "th_status": "活性物质批准状态",
       "th_change": "变更信号",
       "th_expiry": "批准到期",
@@ -2660,6 +2669,7 @@ window.RB_CONFIG = {
       "sec_list": "Active Substances List (176)",
       "sec_list_n": "Click a header to sort, type a keyword to search, filter by column. Proposed MRLs must be verified against EUR-Lex and the EFSA Journal.",
       "th_name": "Active substance (EN)",
+      "col_name_hint": "Click to expand details ▾",
       "th_status": "Active substance approval status",
       "th_change": "Change signal",
       "th_expiry": "Approval expiry",
@@ -6601,20 +6611,49 @@ window.RB_CONFIG = {
 
       if(!signals.length) return emptyNode();
 
-      /* 按优先级排序: P4 > P3 > P2 > P1 */
+      /* 按优先级排序: P4 > P3 > P2 > P1 (仅用于兜底顺序) */
       var prio = {'MRL Applicable':0, '拟变更-Published':1, '拟变更-Voted':2, '拟变更-EFSA opinion':3};
       signals.sort(function(a,b){ return (prio[a.label]||9) - (prio[b.label]||9); });
-      var primary = signals[0];
 
-      /* changeDate = 最新信号日期(用户 2026-08-30 要求) */
-      var maxDt = signals[0].sigDt;
-      for(var k = 1; k < signals.length; k++){
-        if(signals[k].sigDt && (!maxDt || signals[k].sigDt > maxDt)) maxDt = signals[k].sigDt;
+      /* ▼ 2026-08-30 用户要求: MRL Applicable 已生效后若同时存在「新的 MRL 变更信号」
+         (拟变更-*), 则 primary 与 changeDate 一律取【最新拟变更信号】的发布日,
+         而非 MRL 生效日。
+         例: Chlormequat Chloride — Applicable 11/02/2026, 拟变更-Published 06/02/2026
+             → changeDate 取 06/02/2026(新信号), 而非 11/02/2026(MRL 生效日)。
+         仅当二者共存时启用此优先级; 其余情形(仅 Applicable / 仅拟变更)保持 v4 原行为。 */
+      function latestByDate(arr){
+        return arr.reduce(function(acc, s){
+          if(!s.sigDt) return acc;
+          if(!acc) return s;
+          return s.sigDt > acc.sigDt ? s : acc;
+        }, null);
+      }
+
+      var hasApplicable = signals.some(function(s){ return s.label === 'MRL Applicable'; });
+      var proposedSigs = signals.filter(function(s){ return /^拟变更/.test(s.label); });
+      var primary, changeDateDt;
+      if(hasApplicable && proposedSigs.length){
+        /* changeDate 一律取最新拟变更信号发布日(用户 2026-08-30 要求: 用新信号, 非 MRL 生效日) */
+        changeDateDt = (latestByDate(proposedSigs) || signals[0]).sigDt;
+        /* primary(数据来源/预计生效): 拟变更信号为「已正式发布法规」(sigReg 非 PLAN 草案/非 EFSA)
+           则采用该新信号; 若为 Voted 草案(如 Deltamethrin 的 PLAN/2025/3053)则回退 P4,
+           以免丢失现行 MRL 的来源链接与生效日期 */
+        var realProposed = proposedSigs.filter(function(s){
+          var r = s.sigReg || '';
+          return r && !/^PLAN\s*\//.test(r) && !/^EFSA/i.test(r);
+        });
+        primary = realProposed.length ? (latestByDate(realProposed) || signals[0]) : signals[0];
+      } else {
+        primary = signals[0];
+        changeDateDt = signals[0].sigDt;
+        for(var k = 1; k < signals.length; k++){
+          if(signals[k].sigDt && (!changeDateDt || signals[k].sigDt > changeDateDt)) changeDateDt = signals[k].sigDt;
+        }
       }
 
       return {
         change: signals.map(function(s){ return s.label; }).join(' \u00b7 '),
-        changeDate: fmtDMY(maxDt),
+        changeDate: changeDateDt ? fmtDMY(changeDateDt) : DASH,
         signalUrl: primary.sigUrl,
         signalReg: primary.sigReg,
         appliedDate: primary.appDt ? fmtDMY(primary.appDt) : DASH,
@@ -6920,7 +6959,7 @@ window.RB_CONFIG = {
   padding: 8px 0;
   box-sizing: border-box;
   position: sticky;
-  top: 113px;
+  top: 130px;
   z-index: 49;
   box-shadow: 0 2px 3px rgba(0,52,49,.03);
 }
