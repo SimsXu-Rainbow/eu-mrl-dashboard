@@ -717,6 +717,9 @@ td.mrl-cmp-green { background:rgba(63,147,106,.22); }
 .sum-ov-tbl td.up-cnt{color:#E88728;font-weight:700;}
 .sum-ov-tbl td.down-cnt{color:#3F936A;font-weight:700;}
 .sum-ov-tbl td.new-cnt{color:#6b7280;font-weight:700;}
+.sum-ov-tbl td.eff-yes{color:#3F936A;font-weight:700;}
+.sum-ov-tbl td.eff-no{color:#b45309;font-weight:700;}
+.sum-ov-tbl td.eff-na{color:#9ca3af;font-weight:600;}
 .sum-mod{border:1px solid #e3e6ea;border-radius:10px;margin-bottom:18px;overflow:hidden;background:#fff;}
 .sum-mod-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px;background:#f7f8fa;border-bottom:1px solid #e3e6ea;}
 .sum-prio{background:#1f2a44;color:#fff;font-size:12px;font-weight:700;padding:2px 9px;border-radius:11px;}
@@ -2277,29 +2280,49 @@ function renderSummaryOverview(wrap, mods){
     '<th class="c">'+TL('sum_ov_col_prio')+'</th>'+
     '<th class="c">'+TL('sum_ov_col_voted')+'</th>'+
     '<th class="c">'+TL('sum_ov_col_aeed')+'</th>'+
+    '<th class="c" title="'+TL('sum_ov_eff_v_tip')+'">'+TL('sum_ov_col_eff_v')+'</th>'+
     '<th class="c">'+TL('sum_ov_col_up')+'</th>'+
     '<th class="c">'+TL('sum_ov_col_down')+'</th>'+
     '<th class="c">'+TL('sum_ov_col_new')+'</th>'+
     '</tr>';
   tbl.appendChild(thead);
   var tb = el('tbody');
+  /* 截至日: 当前任务指定 2026-08-30。YYYY-MM-DD 字符串可直接字典序比较 */
+  var EFF_CUTOFF = '2026-08-30';
   mods.forEach(function(m){
-    var prio = (m.prio!==null && m.prio!=='' && m.prio!==undefined) ? (m.prio) : '\u2014';
-    var voted = m.maxVoted ? m.maxVoted.replace(/-/g,'/') : '\u2014';
+    var prio = (m.prio!==null && m.prio!=='' && m.prio!==undefined) ? m.prio : '\u2014';
+    var voted = m.maxVoted ? m.maxVoted.replace(/-/g,'/') : '';
     /* 预计生效日期: 取该物质全部 change 行 date 字段最大值 (YYYY-MM-DD -> YYYY/MM/DD) */
-    var aeed = '\u2014';
+    var aeed = '';
+    var aeedRaw = '';
     if (m.changes && m.changes.length) {
       var maxD = '';
       m.changes.forEach(function(c){
         if (c.date && c.date > maxD) maxD = c.date;
       });
-      if (maxD) aeed = maxD.replace(/-/g,'/');
+      if (maxD) { aeedRaw = maxD; aeed = maxD.replace(/-/g,'/'); }
     }
+    /* 截止 8/30 是否已生效 */
+    var effV = '';
+    var effCls = 'eff-na';
+    if (!aeedRaw) {
+      effV = '\u2014';
+      effCls = 'eff-na';
+    } else if (aeedRaw <= EFF_CUTOFF) {
+      effV = TL('sum_ov_eff_yes');
+      effCls = 'eff-yes';
+    } else {
+      effV = TL('sum_ov_eff_no');
+      effCls = 'eff-no';
+    }
+    if (aeed === '') aeed = '\u2014';
+    if (voted === '') voted = '\u2014';
     var tr = el('tr');
     tr.innerHTML = '<td class="ai">'+sumEsc(m.sub)+'</td>'+
       '<td class="c">'+sumEsc(prio)+'</td>'+
       '<td class="c mono">'+voted+'</td>'+
       '<td class="c mono">'+aeed+'</td>'+
+      '<td class="c '+effCls+'" title="'+TL('sum_ov_eff_v_tip')+'">'+effV+'</td>'+
       '<td class="c up-cnt">'+(m.nUp||0)+'</td>'+
       '<td class="c down-cnt">'+(m.nDown||0)+'</td>'+
       '<td class="c new-cnt">'+(m.nNew||0)+'</td>';
@@ -2480,6 +2503,10 @@ window.RB_CONFIG = {
       "sum_ov_col_prio": "优先级",
       "sum_ov_col_voted": "信号公布日",
       "sum_ov_col_aeed": "预计生效日期",
+      "sum_ov_col_eff_v": "是否已生效（截至 2026-08-30）",
+      "sum_ov_eff_v_tip": "依据「预计生效日期」与 2026-08-30 比较：≤ 8/30 标记为已生效；> 8/30 标记为未生效；无数值则显示 —。",
+      "sum_ov_eff_yes": "已生效",
+      "sum_ov_eff_no": "未生效",
       "sum_ov_col_up": "上升",
       "sum_ov_col_down": "下降",
       "sum_ov_col_new": "新设",
@@ -2672,6 +2699,10 @@ window.RB_CONFIG = {
       "sum_ov_col_prio": "Priority",
       "sum_ov_col_voted": "Signal Date",
       "sum_ov_col_aeed": "Expected effective date",
+      "sum_ov_col_eff_v": "Effective as of 2026-08-30",
+      "sum_ov_eff_v_tip": "Compares the expected effective date against 2026-08-30: \u2264 8/30 = already effective; > 8/30 = not yet; — if no expected date.",
+      "sum_ov_eff_yes": "Yes",
+      "sum_ov_eff_no": "Not yet",
       "sum_ov_col_up": "Up",
       "sum_ov_col_down": "Down",
       "sum_ov_col_new": "New",
