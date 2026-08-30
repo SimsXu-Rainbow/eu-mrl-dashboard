@@ -728,6 +728,17 @@ td.mrl-cmp-green { background:rgba(63,147,106,.22); }
 .sum-ov-chg.proposed{background:#fdebd6;color:#b45309;border:1px solid #f6cf9b;}
 .sum-ov-chg.approval{background:#e0e9f8;color:#1e4ea8;border:1px solid #bccae8;}
 .sum-ov-chg.none{background:#f1f3f5;color:#6b7280;border:1px solid #dfe3e7;}
+/* ▼ 2026-08-30 重点关注文字版概要 (按 DGA 优先级升序) */
+.sum-focus{margin:0 0 18px;background:#fff;border:1px solid #e3e6ea;border-radius:10px;padding:14px 16px;}
+.sum-focus-h3{font-size:13.5px;color:#1f2a44;margin:0 0 6px;font-weight:700;}
+.sum-focus-intro{font-size:12px;color:#6b7280;margin:0 0 10px;line-height:1.5;}
+.sum-focus-list{display:flex;flex-direction:column;gap:6px;}
+.sum-focus-item{font-size:12.5px;line-height:1.45;padding:7px 11px;border-radius:7px;background:#fafbfc;border-left:3px solid #cbd2da;}
+.sum-focus-item.p-proposed{border-left-color:#b45309;background:#fef7ee;}
+.sum-focus-item.p-revised{border-left-color:#3F936A;background:#f1f9f4;}
+.sum-focus-badge{display:inline-block;font-size:11px;font-weight:700;color:#fff;background:#1f2a44;border-radius:9px;padding:1px 8px;margin-right:8px;vertical-align:middle;}
+.sum-focus-name{font-weight:700;color:#1f2a44;margin-right:6px;}
+.sum-focus-meta{color:#6b7280;}
 .sum-mod{border:1px solid #e3e6ea;border-radius:10px;margin-bottom:18px;overflow:hidden;background:#fff;}
 .sum-mod-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px;background:#f7f8fa;border-bottom:1px solid #e3e6ea;}
 .sum-prio{background:#1f2a44;color:#fff;font-size:12px;font-weight:700;padding:2px 9px;border-radius:11px;}
@@ -2289,15 +2300,15 @@ function renderSummaryModule(mod){
 function renderSummaryOverview(wrap, mods){
   var sec = el('section','sum-ov');
   sec.appendChild(el('h2','sum-ov-h2', TL('sum_ov_title')));
-  /* 跨引用: 从 RB_CONFIG.views[].blocks[](id='substances').rows 按 name 取「变更信号」与「变更信号发布日」，
-     使 summary 视图的这两列与活性物质清单完全一致(避免 maxVoted/maxdate 与四节点逻辑错位)。 */
+  /* 跨引用: 从 RB_CONFIG.views[].blocks[](id='substances').rows 按 name 取「变更信号」「变更信号发布日」「优先级」，
+     使 summary 视图的这几列与活性物质清单完全一致(避免 maxVoted/maxdate 与四节点逻辑错位)。 */
   var SUB_INFO = {};
   try {
     (RB_CONFIG.views || RB_CONFIG.sections || []).forEach(function(v0){
       (v0.blocks || []).forEach(function(b0){
         if (b0 && b0.id === 'substances' && b0.rows) {
           b0.rows.forEach(function(r0){
-            if (r0 && r0.name) SUB_INFO[r0.name] = { change: r0.change, changeDate: r0.changeDate, changeUrl: r0.signalUrl || r0.appliedUrl || null, changeReg: r0.signalReg || r0.appliedReg || null };
+            if (r0 && r0.name) SUB_INFO[r0.name] = { change: r0.change, changeDate: r0.changeDate, priority: r0.priority, changeUrl: r0.signalUrl || r0.appliedUrl || null, changeReg: r0.signalReg || r0.appliedReg || null };
           });
         }
       });
@@ -2309,25 +2320,12 @@ function renderSummaryOverview(wrap, mods){
     if (chg === '批准变动' || chg === 'Approval change') return 'approval';
     return 'none';
   }
-  var tbl = el('table','sum-ov-tbl');
-  var thead = el('thead');
-  thead.innerHTML = '<tr>'+
-    '<th>'+TL('sum_ov_col_ai')+'</th>'+
-    '<th class="c">'+TL('sum_ov_col_prio')+'</th>'+
-    '<th class="c">'+TL('sum_ov_col_chg')+'</th>'+
-    '<th class="c" title="'+TL('sum_ov_voted_tip')+'">'+TL('sum_ov_col_voted')+'</th>'+
-    '<th class="c">'+TL('sum_ov_col_aeed')+'</th>'+
-    '<th class="c" title="'+TL('sum_ov_eff_v_tip')+'">'+TL('sum_ov_col_eff_v')+'</th>'+
-    '<th class="c">'+TL('sum_ov_col_up')+'</th>'+
-    '<th class="c">'+TL('sum_ov_col_down')+'</th>'+
-    '<th class="c">'+TL('sum_ov_col_new')+'</th>'+
-    '</tr>';
-  tbl.appendChild(thead);
-  var tb = el('tbody');
   /* 截至日: 当前任务指定 2026-08-30。YYYY-MM-DD 字符串可直接字典序比较 */
   var EFF_CUTOFF = '2026-08-30';
+  var rowsData = [];
   mods.forEach(function(m){
-    var prio = (m.prio!==null && m.prio!=='' && m.prio!==undefined) ? m.prio : '\u2014';
+    /* 优先级: 优先用 summary 自带 prio, 回退到 substances 清单的权威 priority(数值越小越紧急) */
+    var prio = (m.prio!==null && m.prio!=='' && m.prio!==undefined) ? m.prio : ((SUB_INFO[m.sub] && SUB_INFO[m.sub].priority!=null && SUB_INFO[m.sub].priority!=='') ? SUB_INFO[m.sub].priority : null);
     /* 变更信号 / 信号公布日: 优先引用活性物质清单(substances 表)的权威值 */
     var subInfo = SUB_INFO[m.sub] || {};
     var chg = (subInfo.change && subInfo.change !== '\u2014') ? subInfo.change : '\u2014';
@@ -2376,7 +2374,6 @@ function renderSummaryOverview(wrap, mods){
     var revMaxDate = '';
     var hasRevised = false;
     var hasAnyChange = m.changes && m.changes.length > 0;
-    var isProposed = /拟变更/.test(chg);
     if (hasAnyChange) {
       m.changes.forEach(function(c){
         if (c.kind === 'revised' && c.date && c.date > revMaxDate) { revMaxDate = c.date; hasRevised = true; }
@@ -2403,21 +2400,82 @@ function renderSummaryOverview(wrap, mods){
     } else {
       chgHtml = '<span class="sum-ov-chg none">\u2014</span>';
     }
+    rowsData.push({
+      sub: m.sub, prio: prio, chg: chg, chgHtml: chgHtml, voted: voted,
+      aeed: aeed, effV: effV, effCls: effCls,
+      nUp: m.nUp||0, nDown: m.nDown||0, nNew: m.nNew||0
+    });
+  });
+
+  /* ▼ 2026-08-30 用户要求: 变更汇总顶部按优先级补充「重点关注」文字版概要 */
+  sec.appendChild(buildFocusBox(rowsData));
+
+  var tbl = el('table','sum-ov-tbl');
+  var thead = el('thead');
+  thead.innerHTML = '<tr>'+
+    '<th>'+TL('sum_ov_col_ai')+'</th>'+
+    '<th class="c">'+TL('sum_ov_col_prio')+'</th>'+
+    '<th class="c">'+TL('sum_ov_col_chg')+'</th>'+
+    '<th class="c" title="'+TL('sum_ov_voted_tip')+'">'+TL('sum_ov_col_voted')+'</th>'+
+    '<th class="c">'+TL('sum_ov_col_aeed')+'</th>'+
+    '<th class="c" title="'+TL('sum_ov_eff_v_tip')+'">'+TL('sum_ov_col_eff_v')+'</th>'+
+    '<th class="c">'+TL('sum_ov_col_up')+'</th>'+
+    '<th class="c">'+TL('sum_ov_col_down')+'</th>'+
+    '<th class="c">'+TL('sum_ov_col_new')+'</th>'+
+    '</tr>';
+  tbl.appendChild(thead);
+  var tb = el('tbody');
+  rowsData.forEach(function(r){
     var tr = el('tr');
-    tr.innerHTML = '<td class="ai">'+sumEsc(m.sub)+'</td>'+
-      '<td class="c">'+sumEsc(prio)+'</td>'+
-      '<td class="c chg-cell">'+chgHtml+'</td>'+
-      '<td class="c mono">'+voted+'</td>'+
-      '<td class="c mono">'+aeed+'</td>'+
-      '<td class="c '+effCls+'" title="'+TL('sum_ov_eff_v_tip')+'">'+effV+'</td>'+
-      '<td class="c up-cnt">'+(m.nUp||0)+'</td>'+
-      '<td class="c down-cnt">'+(m.nDown||0)+'</td>'+
-      '<td class="c new-cnt">'+(m.nNew||0)+'</td>';
+    tr.innerHTML = '<td class="ai">'+sumEsc(r.sub)+'</td>'+
+      '<td class="c">'+sumEsc(r.prio===null?'—':r.prio)+'</td>'+
+      '<td class="c chg-cell">'+r.chgHtml+'</td>'+
+      '<td class="c mono">'+r.voted+'</td>'+
+      '<td class="c mono">'+r.aeed+'</td>'+
+      '<td class="c '+r.effCls+'" title="'+TL('sum_ov_eff_v_tip')+'">'+r.effV+'</td>'+
+      '<td class="c up-cnt">'+r.nUp+'</td>'+
+      '<td class="c down-cnt">'+r.nDown+'</td>'+
+      '<td class="c new-cnt">'+r.nNew+'</td>';
     tb.appendChild(tr);
   });
   tbl.appendChild(tb);
   sec.appendChild(tbl);
   wrap.appendChild(sec);
+}
+
+/* 2026-08-30: 变更汇总「重点关注」文字版概要 — 按 DGA 优先级升序(数值越小越紧急), 拟变更置顶高亮 */
+function buildFocusBox(rowsData){
+  var sec = el('section','sum-focus');
+  sec.appendChild(el('h3','sum-focus-h3', TL('sum_focus_title')));
+  sec.appendChild(el('p','sum-focus-intro', TL('sum_focus_intro')));
+  /* 排序: 拟变更优先, 其次按优先级数值升序(越小越紧急), 无优先级排末 */
+  var sorted = rowsData.slice().sort(function(a,b){
+    var pa = (a.prio===null||a.prio==='')?Infinity:Number(a.prio);
+    var pb = (b.prio===null||b.prio==='')?Infinity:Number(b.prio);
+    var aP = /拟变更/.test(a.chg)?0:1, bP = /拟变更/.test(b.chg)?0:1;
+    if (aP !== bP) return aP - bP;
+    return pa - pb;
+  });
+  var list = el('div','sum-focus-list');
+  sorted.forEach(function(r){
+    var isProp = /拟变更/.test(r.chg);
+    var item = el('div','sum-focus-item '+(isProp?'p-proposed':'p-revised'));
+    var badge = el('span','sum-focus-badge');
+    badge.textContent = TL('sum_focus_prio') + ' ' + (r.prio===null||r.prio==='' ? '—' : r.prio);
+    item.appendChild(badge);
+    var name = el('span','sum-focus-name'); name.textContent = r.sub;
+    item.appendChild(name);
+    var meta = el('span','sum-focus-meta');
+    var dirParts = [];
+    if (r.nUp) dirParts.push('\u25b2'+r.nUp);
+    if (r.nDown) dirParts.push('\u25bc'+r.nDown);
+    if (r.nNew) dirParts.push('\u25cf'+r.nNew);
+    meta.textContent = ' — ' + r.chg + ' · ' + TL('sum_focus_eff') + r.effV + ' · ' + TL('sum_ov_col_voted') + ' ' + r.voted + ' · ' + TL('sum_ov_col_aeed') + ' ' + r.aeed + (dirParts.length?(' · '+dirParts.join(' ')):'');
+    item.appendChild(meta);
+    list.appendChild(item);
+  });
+  sec.appendChild(list);
+  return sec;
 }
 
 function renderSummaryView(main){
@@ -2600,6 +2658,10 @@ window.RB_CONFIG = {
       "sum_ov_col_up": "上升",
       "sum_ov_col_down": "下降",
       "sum_ov_col_new": "新设",
+      "sum_focus_title": "重点关注（按 DGA 优先级升序）",
+      "sum_focus_prio": "优先级",
+      "sum_focus_eff": "状态",
+      "sum_focus_intro": "按 DGA 计划优先级升序（数值越小越紧急），标注变更信号、生效状态与升降情况；含「拟变更」者排前并高亮。",
 
       "src_lead_eyebrow": "Data Provenance · 信息来源与对应",
       "src_lead_text": "本页说明看板各字段的数据来源、官方出处，以及每条信息在哪个网站能直接复核。无需逐个 AI 查证，概要性了解即可。",
@@ -2799,6 +2861,10 @@ window.RB_CONFIG = {
       "sum_ov_col_up": "Up",
       "sum_ov_col_down": "Down",
       "sum_ov_col_new": "New",
+      "sum_focus_title": "Key Focus (by DGA priority, ascending)",
+      "sum_focus_prio": "Priority",
+      "sum_focus_eff": "Status",
+      "sum_focus_intro": "Sorted by DGA Working-Plan priority (lower = more urgent); shows change signal, effectiveness, and up/down counts. Proposed items are highlighted and listed first.",
 
       "src_lead_eyebrow": "Data Provenance · Sources & Mapping",
       "src_lead_text": "This page lists the dashboard's data sources and where each field can be re-verified on the official sites. A high-level reference — not tied to any specific active ingredient.",
