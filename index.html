@@ -2302,18 +2302,25 @@ function renderSummaryOverview(wrap, mods){
       });
       if (maxD) { aeedRaw = maxD; aeed = maxD.replace(/-/g,'/'); }
     }
-    /* 截止 8/30 是否已生效 */
+    /* 截止 8/30 是否已生效 —— 语义: 变更信号发布日 == 现行 MRL 生效日
+       判定规则: 任一 change.kind === 'revised' 且其 date(已 applied 修订法规的生效日) <= 截止日 → 已生效;
+                  仅 kind ∈ {proposed, new, bars} 的 MRL 变更尚未 applied → 未生效. */
     var effV = '';
     var effCls = 'eff-na';
-    if (!aeedRaw) {
-      effV = '\u2014';
-      effCls = 'eff-na';
-    } else if (aeedRaw <= EFF_CUTOFF) {
-      effV = TL('sum_ov_eff_yes');
-      effCls = 'eff-yes';
+    var revMaxDate = '';
+    var hasRevised = false;
+    var hasAnyChange = m.changes && m.changes.length > 0;
+    if (hasAnyChange) {
+      m.changes.forEach(function(c){
+        if (c.kind === 'revised' && c.date && c.date > revMaxDate) { revMaxDate = c.date; hasRevised = true; }
+      });
+    }
+    if (!hasAnyChange) {
+      effV = '\u2014'; effCls = 'eff-na';          /* 真实无数据:灰 em-dash */
+    } else if (hasRevised && revMaxDate <= EFF_CUTOFF) {
+      effV = TL('sum_ov_eff_yes'); effCls = 'eff-yes';
     } else {
-      effV = TL('sum_ov_eff_no');
-      effCls = 'eff-no';
+      effV = TL('sum_ov_eff_no'); effCls = 'eff-no'; /* 有变更但尚无 applied = 未生效 */
     }
     if (aeed === '') aeed = '\u2014';
     if (voted === '') voted = '\u2014';
@@ -2504,7 +2511,7 @@ window.RB_CONFIG = {
       "sum_ov_col_voted": "信号公布日",
       "sum_ov_col_aeed": "预计生效日期",
       "sum_ov_col_eff_v": "是否已生效（截至 2026-08-30）",
-      "sum_ov_eff_v_tip": "依据「预计生效日期」与 2026-08-30 比较：≤ 8/30 标记为已生效；> 8/30 标记为未生效；无数值则显示 —。",
+      "sum_ov_eff_v_tip": "判定语义：变更信号发布日 == 现行 MRL 生效日 → 已生效。具体规则：任一变更 kind='revised'（MRL 修订法规已 applied）且其修订生效日 ≤ 2026-08-30 → 已生效；仅 kind ∈ {proposed, new, bars} 的 MRL 变更尚未 applied → 未生效。",
       "sum_ov_eff_yes": "已生效",
       "sum_ov_eff_no": "未生效",
       "sum_ov_col_up": "上升",
@@ -2700,7 +2707,7 @@ window.RB_CONFIG = {
       "sum_ov_col_voted": "Signal Date",
       "sum_ov_col_aeed": "Expected effective date",
       "sum_ov_col_eff_v": "Effective as of 2026-08-30",
-      "sum_ov_eff_v_tip": "Compares the expected effective date against 2026-08-30: \u2264 8/30 = already effective; > 8/30 = not yet; — if no expected date.",
+      "sum_ov_eff_v_tip": "Rule: change signal publication date == current MRL effective date \u2192 already effective. Concretely: any change with kind='revised' (MRL revised regulation already applied) and its revision date \u2264 2026-08-30 \u2192 Yes; otherwise changes are only kind \u2208 {proposed, new, bars} and not yet applied \u2192 Not yet.",
       "sum_ov_eff_yes": "Yes",
       "sum_ov_eff_no": "Not yet",
       "sum_ov_col_up": "Up",
