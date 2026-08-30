@@ -2333,10 +2333,34 @@ function renderSummaryOverview(wrap, mods){
     var chg = (subInfo.change && subInfo.change !== '\u2014') ? subInfo.change : '\u2014';
     var sigRaw = (subInfo.changeDate && subInfo.changeDate !== '\u2014') ? subInfo.changeDate : '';
     var voted = sigRaw ? sigRaw.replace(/-/g,'/') : '\u2014';
-    /* 预计生效日期: 取该物质全部 change 行 date 字段最大值 (YYYY-MM-DD -> YYYY/MM/DD) */
+    /* 预计生效日期:
+       1) 「拟变更」行: 从 MRL_MATRIX[id] "Not yet applicable" 法规取最大 applied 日期 (拟变更生效日);
+          若 proposed MRL 尚未 published (applied 字段为空, 即"仅有 voted PLAN 草案"), 显示 N/A.
+       2) 非「拟变更」行: 保留原逻辑 (changes[].date 最大值, 即 MRL Applicable 日).
+       变更时间: 2026-08-30. */
     var aeed = '';
     var aeedRaw = '';
-    if (m.changes && m.changes.length) {
+    var isProposed = chg && (chg.indexOf('拟变更') === 0 || chg.indexOf('Proposed') === 0);
+    if (isProposed) {
+      aeed = 'N/A';
+      try {
+        var _aisHit = (window.AIS || []).find(function(a){ return a && a.name && a.name.toLowerCase() === m.sub.toLowerCase(); });
+        var _mm = _aisHit && window.MRL_MATRIX && window.MRL_MATRIX[_aisHit.id];
+        if (_mm && _mm.cols) {
+          var _maxD = '';
+          _mm.cols.forEach(function(c){
+            if (c && c.status === 'Not yet applicable' && c.applied) {
+              var _p = String(c.applied).split('/');
+              if (_p.length === 3) {
+                var _iso = _p[2] + '-' + _p[1] + '-' + _p[0];
+                if (_iso > _maxD) _maxD = _iso;
+              }
+            }
+          });
+          if (_maxD) { aeedRaw = _maxD; aeed = _maxD.replace(/-/g,'/'); }
+        }
+      } catch(_e) { aeed = 'N/A'; }
+    } else if (m.changes && m.changes.length) {
       var maxD = '';
       m.changes.forEach(function(c){
         if (c.date && c.date > maxD) maxD = c.date;
