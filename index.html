@@ -3870,8 +3870,8 @@ window.RB_CONFIG = {
     "appliedReg": "PLAN/2025/3053",
     "appliedStatus": "Not yet applicable",
     "signalDate": "2026-05-19",
-    "signalUrl": "https://open.efsa.europa.eu/questions/EFSA-Q-2025-00155",
-    "signalReg": "EFSA J (2025) – MRL modification: cherries",
+    "signalUrl": "https://ec.europa.eu/transparency/comitology-register/screen/documents/112997/3/consult",
+    "signalReg": "Comitology D112997/3 – Draft Reg MRL (Deltamethrin et al.)",
     "signalStatus": "Not yet applicable"
   },
   {
@@ -4284,8 +4284,8 @@ window.RB_CONFIG = {
     "appliedReg": "PLAN/2024/2476",
     "appliedStatus": "Not yet applicable",
     "signalDate": "2026-05-19",
-    "signalUrl": "https://open.efsa.europa.eu/questions/EFSA-Q-2023-00421",
-    "signalReg": "EFSA J (2025) – Import tolerances: various crops",
+    "signalUrl": "https://ec.europa.eu/transparency/comitology-register/screen/documents/112997/3/consult",
+    "signalReg": "Comitology D112997/3 – Draft Reg MRL (Difenoconazole et al.)",
     "signalStatus": "Not yet applicable"
   },
   {
@@ -4410,8 +4410,8 @@ window.RB_CONFIG = {
     "appliedReg": "PLAN/2025/3053",
     "appliedStatus": "Not yet applicable",
     "signalDate": "2026-05-19",
-    "signalUrl": "https://open.efsa.europa.eu/questions/EFSA-Q-2024-00515",
-    "signalReg": "EFSA J (2025) – MRL modification: barley/wheat/rye",
+    "signalUrl": "https://ec.europa.eu/transparency/comitology-register/screen/documents/112997/3/consult",
+    "signalReg": "Comitology D112997/3 – Draft Reg MRL (Pinoxaden et al.)",
     "signalStatus": "Not yet applicable"
   },
   {
@@ -4860,8 +4860,8 @@ window.RB_CONFIG = {
     "appliedReg": "PLAN/2025/3053",
     "appliedStatus": "Not yet applicable",
     "signalDate": "2026-05-19",
-    "signalUrl": "https://open.efsa.europa.eu/questions/EFSA-Q-2025-00251",
-    "signalReg": "EFSA J (2026) – MRL modification: various crops",
+    "signalUrl": "https://ec.europa.eu/transparency/comitology-register/screen/documents/112997/3/consult",
+    "signalReg": "Comitology D112997/3 – Draft Reg MRL (Prothioconazole et al.)",
     "signalStatus": "Not yet applicable"
   },
   {
@@ -6498,8 +6498,8 @@ window.RB_CONFIG = {
     "appliedReg": "PLAN/2025/3053",
     "appliedStatus": "Not yet applicable",
     "signalDate": "2026-05-19",
-    "signalUrl": "https://open.efsa.europa.eu/questions/EFSA-Q-2023-00874",
-    "signalReg": "EFSA J (2025) – MRL modification: grapes",
+    "signalUrl": "https://ec.europa.eu/transparency/comitology-register/screen/documents/112997/3/consult",
+    "signalReg": "Comitology D112997/3 – Draft Reg MRL (Dodine et al.)",
     "signalStatus": "Not yet applicable"
   },
   {
@@ -7253,12 +7253,15 @@ window.RB_CONFIG = {
     var cutoffISO = cutoff.toISOString().slice(0,10);
     /* 二手来源(方案 B): 官方 comitology 登记处暂不可访问时,
        对「拟变更-Voted」节点回退到 AGRINFO 公开报告页(非官方, 仅供参考) */
+    /* 官方来源: comitology 登记处 D112997/3 覆盖 Deltamethrin/Difenoconazole/Dodine/Pinoxaden/Prothioconazole
+       (Vote 2026-05-19, 待正式公布 Reg (EU) 编号); Acequinocyl + Maleic hydrazide 同文档 */
+    var COMITOLOGY_VOTED_2026_05_19 = 'https://ec.europa.eu/transparency/comitology-register/screen/documents/112997/3/consult';
     var SECONDARY_SRC = {
-      'Difenoconazole':  'https://agrinfo.eu/book-of-reports/maximum-residue-level-for-difenoconazole/',
-      'Pinoxaden':       'https://agrinfo.eu/book-of-reports/maximum-residue-levels-for-pinoxaden',
-      'Prothioconazole': 'https://agrinfo.eu/book-of-reports/maximum-residue-levels-for-prothioconazole',
-      'Dodine':          'https://agrinfo.eu/book-of-reports/maximum-residue-levels-for-dodine',
-      'Deltamethrin':    'https://agrinfo.eu/book-of-reports/maximum-residue-levels-for-deltamethrin'
+      'Difenoconazole':  COMITOLOGY_VOTED_2026_05_19,
+      'Pinoxaden':       COMITOLOGY_VOTED_2026_05_19,
+      'Prothioconazole': COMITOLOGY_VOTED_2026_05_19,
+      'Dodine':          COMITOLOGY_VOTED_2026_05_19,
+      'Deltamethrin':    COMITOLOGY_VOTED_2026_05_19
     };
     var DASH = '\u2014';
     var M = window.MRL_MATRIX || {};
