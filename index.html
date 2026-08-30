@@ -590,6 +590,10 @@ button { font-family: inherit; }
 
 .rbv-eurlex{color:#1d4ed8;text-decoration:none;border-bottom:1px dotted #93c5fd}
 .rbv-eurlex:hover{border-bottom-style:solid;color:#0c3eb6}
+.rbv-src-secondary{color:#b45309;text-decoration:none;border-bottom:1px dotted #fcd34d}
+.rbv-src-secondary:hover{border-bottom-style:solid;color:#92400e}
+.rbv-src-badge{display:inline-block;margin-left:4px;padding:0 5px;border-radius:8px;font-size:10px;line-height:15px;vertical-align:middle;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;cursor:help}
+.rbv-src-note{display:inline-block;margin-left:6px;font-size:10px;line-height:15px;color:#9ca3af;vertical-align:middle;cursor:help}
 </style>
 
 <style id="mrl-style">
@@ -1769,6 +1773,11 @@ function renderTableBody(tid) {
           _al.rel = 'noopener';
           _al.textContent = _ad;
           td.appendChild(_al);
+          var _alNote = document.createElement('span');
+          _alNote.className = 'rbv-src-note';
+          _alNote.textContent = TL('src_eurlex_note');
+          _alNote.title = TL('src_eurlex_note_tip');
+          td.appendChild(_alNote);
         } else if (_adFuture) {
           td.textContent = _ad;
         } else {
@@ -1781,23 +1790,48 @@ function renderTableBody(tid) {
            （已通过法规留在 appliedUrl，作为「预计生效日期」的出处）。
            例：Reg (EU) 2026/1314 的 voted 草案 = comitology D108180/05（2026-02-06 投票）。
            当源是 EFSA Open Questions 时，会回退到 efsa_url + efsa_label。
+           若官方 comitology 不可访问(方案 B)，则回退 AGRINFO 二手来源并以「非官方」标记。
            若依然没有，则退回 appliedUrl。 */
         var _srcUrl = r.signalUrl || r.appliedUrl;
         var _srcReg = r.signalReg || r.appliedReg;
+        var _official = (r.signalOfficial === false) ? false : true;
         if (_srcUrl) {
           var _isEfsa = /open\.efsa\.europa\.eu/.test(_srcUrl);
-          var _lk = el('a', _isEfsa ? 'mrl-row-efsa' : 'rbv-eurlex');
-          _lk.href = _srcUrl;
-          _lk.target = '_blank';
-          _lk.rel = 'noopener';
-          _lk.textContent = _srcReg || (_isEfsa ? 'EFSA \u2197' : '\u2026');
-          if (_isEfsa && r.signalStatus) {
-            var _st = document.createElement('span');
-            _st.className = 'mrl-row-efsa-st';
-            _st.textContent = ' ' + r.signalStatus;
-            _lk.appendChild(_st);
+          if (!_official) {
+            /* 二手来源(非官方)标记: 官方链接暂不可访问 */
+            var _lk2 = el('a', 'rbv-src-secondary');
+            _lk2.href = _srcUrl;
+            _lk2.target = '_blank';
+            _lk2.rel = 'noopener';
+            _lk2.textContent = 'AGRINFO \u2197';
+            _lk2.title = TL('src_secondary_tip');
+            td.appendChild(_lk2);
+            var _badge = document.createElement('span');
+            _badge.className = 'rbv-src-badge';
+            _badge.textContent = TL('src_secondary');
+            _badge.title = TL('src_secondary_tip');
+            td.appendChild(_badge);
+          } else {
+            var _lk = el('a', _isEfsa ? 'mrl-row-efsa' : 'rbv-eurlex');
+            _lk.href = _srcUrl;
+            _lk.target = '_blank';
+            _lk.rel = 'noopener';
+            _lk.textContent = _srcReg || (_isEfsa ? 'EFSA \u2197' : '\u2026');
+            if (_isEfsa && r.signalStatus) {
+              var _st = document.createElement('span');
+              _st.className = 'mrl-row-efsa-st';
+              _st.textContent = ' ' + r.signalStatus;
+              _lk.appendChild(_st);
+            }
+            td.appendChild(_lk);
+            if (!_isEfsa) {
+              var _note = document.createElement('span');
+              _note.className = 'rbv-src-note';
+              _note.textContent = TL('src_eurlex_note');
+              _note.title = TL('src_eurlex_note_tip');
+              td.appendChild(_note);
+            }
           }
-          td.appendChild(_lk);
         } else {
           td.textContent = '\u2014';
         }
@@ -2399,6 +2433,10 @@ window.RB_CONFIG = {
       "拟变更-Voted": "拟变更-Voted",
       "拟变更-Published": "拟变更-Published",
       "MRL Applicable": "MRL Applicable",
+      "src_secondary": "非官方",
+      "src_secondary_tip": "官方来源(comitology 登记处)暂不可访问，此处为二手信息源 AGRINFO，仅供参考",
+      "src_eurlex_note": "官方源 EUR-Lex（可能临时不可用）",
+      "src_eurlex_note_tip": "EUR-Lex 为欧盟官方法规数据库，偶有临时不可用；若点开链接显示空白或仅 OJ 首页，属源站问题而非死链，请稍后重试。",
       "批准变动": "批准变动",
       "—": "—",
       "现行": "现行",
@@ -2587,6 +2625,10 @@ window.RB_CONFIG = {
       "拟变更-Voted": "Proposed-Voted",
       "拟变更-Published": "Proposed-Published",
       "MRL Applicable": "MRL Applicable",
+      "src_secondary": "Unofficial",
+      "src_secondary_tip": "Official source (comitology register) is temporarily inaccessible; this is a secondary source (AGRINFO), for reference only",
+      "src_eurlex_note": "Official source EUR-Lex (may be temporarily unavailable)",
+      "src_eurlex_note_tip": "EUR-Lex is the official EU legislation database and is occasionally temporarily unavailable. If the link opens blank or shows only the OJ index page, it is a source-side issue, not a dead link; please retry later.",
       "批准变动": "Approval change",
       "—": "—",
       "现行": "Current",
@@ -6316,6 +6358,14 @@ window.RB_CONFIG = {
     var now = new Date();
     var cutoff = new Date('2026-01-01T00:00:00Z');
     var cutoffISO = cutoff.toISOString().slice(0,10);
+    /* 二手来源(方案 B): 官方 comitology 登记处暂不可访问时,
+       对「拟变更-Voted」节点回退到 AGRINFO 公开报告页(非官方, 仅供参考) */
+    var SECONDARY_SRC = {
+      'Difenoconazole':  'https://agrinfo.eu/book-of-reports/maximum-residue-level-for-difenoconazole/',
+      'Pinoxaden':       'https://agrinfo.eu/book-of-reports/maximum-residue-levels-for-pinoxaden',
+      'Prothioconazole': 'https://agrinfo.eu/book-of-reports/maximum-residue-levels-for-prothioconazole',
+      'Dodine':          'https://agrinfo.eu/book-of-reports/maximum-residue-levels-for-dodine'
+    };
     var DASH = '\u2014';
     var M = window.MRL_MATRIX || {};
 
@@ -6391,10 +6441,11 @@ window.RB_CONFIG = {
       return 'https://eur-lex.europa.eu/eli/reg/'+m[2]+'/'+m[3]+'/oj/eng';
     }
     /* 节点结果对象 —— 直接对应 row.* 字段(变更信号 / 变更信号发布日 / 预计生效日 / 数据来源) */
-    function mkNode(change, changeDate, signalUrl, signalReg, appliedDate, appliedUrl, appliedReg){
+    function mkNode(change, changeDate, signalUrl, signalReg, appliedDate, appliedUrl, appliedReg, signalOfficial){
       return { change: change, changeDate: changeDate,
                signalUrl: signalUrl, signalReg: signalReg,
-               appliedDate: appliedDate, appliedUrl: appliedUrl, appliedReg: appliedReg };
+               appliedDate: appliedDate, appliedUrl: appliedUrl, appliedReg: appliedReg,
+               signalOfficial: (signalOfficial === false ? false : true) };
     }
     function emptyNode(){
       return mkNode(DASH, DASH, null, '', DASH, null, '');
@@ -6435,7 +6486,10 @@ window.RB_CONFIG = {
                       url, reg);
       }
 
-      /* P3: 拟变更-Published(已通过待适用) 日期 = applied proxy(用户指定)*/
+      /* P3: 拟变更-Published(已通过待适用)
+         信号发布日 = voted (作 published 的 proxy, 矩阵无单独的 published 字段)
+         预计生效日 = applied
+         两列分开: 信号发布日(法规已通过) vs 预计生效日(法规待适用) */
       if(pubs.length){
         pubs.sort(function(a,b){
           var da = parseDMY(a.col.applied) || new Date(0);
@@ -6444,28 +6498,38 @@ window.RB_CONFIG = {
         });
         var p = pubs[0];
         var reg3 = p.col.reg;
-        var d3   = parseDMY(p.col.applied);
+        var dApplied3 = parseDMY(p.col.applied);
+        var dVoted3   = parseDMY(p.col.voted);
+        var dSignal3  = dVoted3 || dApplied3;  /* fallback: 若无 voted 则退到 applied */
         var url3 = p.col.url || eurLexUrl(reg3) || null;
         return mkNode('拟变更-Published',
-                      fmtDMY(d3),
+                      fmtDMY(dSignal3),
                       url3, reg3,
-                      fmtDMY(d3),
+                      fmtDMY(dApplied3),
                       url3, reg3);
       }
 
       /* P2: 拟变更-Voted(matrix 已通过 voted 日期筛过 cutoff)
-         来源 URL 优先保留 row.signalUrl (comitology D-number 文档),其次 matrix.col.url */
+         来源 URL 优先保留 row.signalUrl (comitology D-number 文档),
+         其次二手来源 SECONDARY_SRC(AGRINFO, 官方 comitology 不可访问时),
+         再次 matrix.col.url */
       if(voteds.length){
         voteds.sort(function(a,b){ return b.voted - a.voted; });
         var v = voteds[0];
         var reg2 = v.col.reg || '';
-        var url2 = (row && row.signalUrl && /comitology-register/.test(row.signalUrl))
-                   ? row.signalUrl
-                   : (v.col.url || eurLexUrl(reg2) || null);
+        var url2, official2 = true;
+        if(row && row.signalUrl && /comitology-register/.test(row.signalUrl)){
+          url2 = row.signalUrl;
+        } else if(SECONDARY_SRC && SECONDARY_SRC[name]){
+          url2 = SECONDARY_SRC[name];
+          official2 = false;
+        } else {
+          url2 = v.col.url || eurLexUrl(reg2) || null;
+        }
         return mkNode('拟变更-Voted',
                       fmtDMY(v.voted),
                       url2, reg2 || (row && row.signalReg) || '',
-                      DASH, null, '');
+                      DASH, null, '', official2);
       }
 
       /* P1: 拟变更-EFSA opinion(只能从 row.signalUrl 命中 open.efsa.europa.eu 推出,
@@ -6495,6 +6559,7 @@ window.RB_CONFIG = {
             r.changeDate  = n.changeDate;
             r.signalUrl   = n.signalUrl;
             r.signalReg   = n.signalReg;
+            r.signalOfficial = n.signalOfficial;
             r.signalDate  = n.changeDate;     /* 同步: 公开遗留引用 */
             r.appliedDate = n.appliedDate;
             r.appliedUrl  = n.appliedUrl;
